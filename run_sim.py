@@ -12,5 +12,5 @@ if __name__ == "__main__":
     ]
 
     # Create and start the controller
-    controller = Controller(meter=meter, batteries=batteries, interval_seconds=2)
+    controller = Controller(meter=meter, batteries=batteries, interval_seconds=4)
     controller.run_forever()

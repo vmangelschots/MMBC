@@ -1,0 +1,21 @@
+# Bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs and debug output
+*.log
+
+# Environment files
+.env
+*.env
+
+# OS junk
+.DS_Store
+
+# Editor folders
+.vscode/
+.idea/
+
+# Tests
+tests/
