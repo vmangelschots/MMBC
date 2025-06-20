@@ -1,5 +1,6 @@
 from pymodbus.client import ModbusTcpClient
 from interfaces.battery_interface import BatteryInterface
+from utils.logger import get_logger
 
 REG_SOC = 32104
 REG_POWER = 32202
@@ -15,6 +16,7 @@ class VenusBattery(BatteryInterface):
         self.name = name
         self.client = ModbusTcpClient(host=self.ip, port=502)
         self.current_power = 0  # track last commanded power
+        self.logger = get_logger('VenusBattery')
         self._connect()
         self.client.write_register(address=REG_RS484_CONTROL_MODE, value=0x55aa, slave=self.unit_id)
     def _connect(self):
@@ -36,7 +38,7 @@ class VenusBattery(BatteryInterface):
         return result.registers[1]
 
     def charge(self, watts: int) -> None:
-        print(f"[VenusBattery] Setting charge to {watts}W")
+        self.logger.info(f"[{self.name}] Setting charge to {watts}W")
         self._connect()
         self.client.write_register(address=REG_SET_FORCED_DISCHARGE, value=1, slave=self.unit_id)
         self.client.write_register(address=REG_DISCHARGE_SETPOINT, value=0, slave=self.unit_id)
@@ -44,7 +46,7 @@ class VenusBattery(BatteryInterface):
         self.current_power = -watts
 
     def discharge(self, watts: int) -> None:
-        print(f"[VenusBattery] Setting discharge to {watts}W")
+        self.logger.info(f"[{self.name}] Setting discharge to {watts}W")
         self._connect()
         self.client.write_register(address=REG_SET_FORCED_DISCHARGE, value=2, slave=self.unit_id)
         self.client.write_register(address=REG_CHARGE_SETPOINT, value=0, slave=self.unit_id)
@@ -52,9 +54,16 @@ class VenusBattery(BatteryInterface):
         self.current_power = watts
 
     def idle(self) -> None:
-        print("[VenusBattery] Setting idle (0W)")
+        self.logger.info(f"[{self.name}] Setting idle (0W)")
         self._connect()
         self.client.write_register(address=REG_SET_FORCED_DISCHARGE, value=0, slave=self.unit_id)
         self.client.write_register(address=REG_CHARGE_SETPOINT, value=0, slave=self.unit_id)
         self.client.write_register(address=REG_DISCHARGE_SETPOINT, value=0, slave=self.unit_id)
         self.current_power = 0
+    def shutdown(self):
+        try:
+            self.client.write_register(address=REG_RS484_CONTROL_MODE, value=0x55bb, slave=self.unit_id)
+            self.client.close()
+            print(f"[{self.name}] RS485 control released.")
+        except Exception as e:
+            print(f"[{self.name}] Failed to release RS485 control: {e}")
