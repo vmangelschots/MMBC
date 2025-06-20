@@ -1,7 +1,9 @@
 import time
 from interfaces.meter_interface import MeterInterface
 from interfaces.battery_interface import BatteryInterface
-
+from utils.logger import get_logger
+import signal
+import sys
 class Controller:
     def __init__(self, meter: MeterInterface, batteries: list[BatteryInterface], interval_seconds: int = 5):
         self.meter = meter
@@ -14,6 +16,7 @@ class Controller:
         self.DISCHARGE_MIN_SOC = 11
         self.CHARGE_LIMIT = 2500
         self.DISCHARGE_LIMIT = 500
+        self.logger = get_logger('Controller')
 
     def run_forever(self):
         while True:
@@ -22,9 +25,9 @@ class Controller:
             adjusted_power = net_power + battery_offset
             now = time.time()
 
-            print(f"\n[Controller] net: {net_power}W | adjusted: {adjusted_power}W")
+            self.logger.info(f"net: {net_power}W | adjusted: {adjusted_power}W")
             for b in self.batteries:
-                print(f" - {b.name}: {b.get_soc()}% @ {b.get_current_wattage()}W")
+                self.logger.info(f" {b.name}: {b.get_soc()}% @ {b.get_current_wattage()}W")
 
             if adjusted_power == 0:
                 self._idle_all()
@@ -91,3 +94,8 @@ class Controller:
     def _idle_all(self):
         for b in self.batteries:
             b.idle()
+    def shutdown_all(self):
+        for b in self.batteries:
+            if hasattr(b, "shutdown"):
+                b.shutdown()
+
