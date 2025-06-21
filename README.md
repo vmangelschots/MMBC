@@ -45,3 +45,20 @@
 ```bash
 docker build -t mmbc .
 docker run --env-file .env --network host --restart unless-stopped mmbc
+
+## 🌟 Roadmap / Wishlist
+
+- [ ] Support for multiple Venus E batteries in live environment
+- [ ] MQTT support (e.g., Home Assistant integration)
+- [ ] Automatic detection of P1 meter on the local network
+- [ ] Configurable control thresholds (min/max SoC, split logic)
+- [ ] Live metrics export (Prometheus or web dashboard)
+
+## 📬 Feedback & Contributions
+
+Pull requests, issues, and feature suggestions are very welcome!
+
+Please note:
+- This is an early-stage project developed around real hardware in a personal setup.
+
+If you're testing with your own setup, share your feedback — especially around additional meter or battery support, logging formats, or integration needs.
