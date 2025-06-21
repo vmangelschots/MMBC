@@ -1,6 +1,6 @@
 # MMBC — Multiple Marstek Battery Controller
 
-**MMBC** is a modular, real-time controller for Marstek Venus E batteries with the goal of achieving "nul op de meter" (zero net power on the electricity meter). It reads net power from a HomeWizard P1 smart meter and controls one or more batteries over Modbus TCP. I use a waveshare rs485 to ethpoe adapter (like https://www.amazon.com.be/-/en/Waveshare-Industrial-Rail-Mount-Electrical-Isolation/dp/B0BGBQJH21/ref=sr_1_1?sr=8-1)
+**MMBC** is a modular, real-time controller for Marstek Venus E batteries with the goal of achieving "nul op de meter" (zero net power on the electricity meter). It reads net power from a HomeWizard P1 smart meter and controls one or more batteries over Modbus TCP. I use a waveshare rs485 to eth poe adapter (like https://www.amazon.com.be/-/en/Waveshare-Industrial-Rail-Mount-Electrical-Isolation/dp/B0BGBQJH21/ref=sr_1_1?sr=8-1)
 
 > ⚠️ **Early Stage**  
 > This project is under active development and currently supports **only one battery**. Support for multiple batteries is planned and partially implemented. This limitation is because my second battery is still on its way.
