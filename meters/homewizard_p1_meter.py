@@ -2,7 +2,7 @@ import requests
 from interfaces.meter_interface import MeterInterface
 
 class HomeWizardP1Meter(MeterInterface):
-    def __init__(self, host: str = "http://172.21.2.226"):
+    def __init__(self, host: str ):
         self.url = f"{host}/api/v1/data"
 
     def get_net_power(self) -> int:

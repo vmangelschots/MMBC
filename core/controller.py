@@ -15,7 +15,7 @@ class Controller:
         self.CHARGE_MAX_SOC = 100
         self.DISCHARGE_MIN_SOC = 11
         self.CHARGE_LIMIT = 2500
-        self.DISCHARGE_LIMIT = 500
+        self.DISCHARGE_LIMIT = 2500
         self.logger = get_logger('Controller')
 
     def run_forever(self):
