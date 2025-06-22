@@ -43,7 +43,7 @@ class VenusBattery(BatteryInterface):
             raise Exception("Failed to read power")
         power = result.registers[1]
         if power > 2600:
-            logger.error(f"[{self.name}] Power reading out of bounds: {power}W")
+            self.logger.error(f"[{self.name}] Power reading out of bounds: {power}W")
             return self.current_power
         return power
 
