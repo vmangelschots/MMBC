@@ -39,13 +39,17 @@ class VenusBattery(BatteryInterface):
     def get_current_wattage(self) -> int:
         self._connect()
         result = self.client.read_holding_registers(address=REG_POWER, count=2, slave=self.unit_id)
-        if result.isError():
-            raise Exception("Failed to read power")
-        power = result.registers[1]
-        if power > 2600:
-            self.logger.error(f"[{self.name}] Power reading out of bounds: {power}W")
-            return self.current_power
-        return power
+
+        if result.isError() or not result.registers or len(result.registers) < 2:
+            self.logger.warning(f"[{self.name}] Failed to read power or incomplete response: {result}")
+            return self.current_power  # fallback to last known
+        high, low = result.registers[0], result.registers[1]
+        raw = (high << 16) | low
+        if raw & 0x80000000:
+            raw -= 0x100000000  # interpret as signed
+
+        #self.current_power = raw
+        return raw
 
     def charge(self, watts: int) -> None:
         self.logger.info(f"[{self.name}] Setting charge to {watts}W")
