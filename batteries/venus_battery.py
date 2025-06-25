@@ -22,9 +22,14 @@ class VenusBattery(BatteryInterface):
         self._connect()
         self.client.write_register(address=REG_RS484_CONTROL_MODE, value=BATTERY_MODBUS_CONTROL, slave=self.unit_id)
         self.last_control_mode_check =  datetime.now() # timestamp for last control mode check
+    
     def _connect(self):
-        if not self.client.connect():
-            raise ConnectionError(f"Could not connect to battery at {self.ip}")
+        if not self.client:
+            self.client = ModbusTcpClient(host=self.ip, port=502)
+        if not self.client.connected:
+            if not self.client.connect():
+                raise ConnectionError(f"Could not connect to battery at {self.ip}")
+            self.logger.info(f"[{self.name}] Connected to battery at {self.ip}")
 
     def get_soc(self) -> float:
         if (datetime.now() - self.last_control_mode_check).total_seconds() > 60:
@@ -76,6 +81,7 @@ class VenusBattery(BatteryInterface):
         self.current_power = 0
     def shutdown(self):
         try:
+            self._connect()
             self.client.write_register(address=REG_RS484_CONTROL_MODE, value=BATTERY_MODBUS_CONTROLL_RELEASE, slave=self.unit_id)
             self.client.close()
             print(f"[{self.name}] RS485 control released.")
@@ -84,8 +90,9 @@ class VenusBattery(BatteryInterface):
 
     def _check_control_mode(self):
         try:
+            self._connect()
             result = self.client.read_holding_registers(address=REG_RS484_CONTROL_MODE, count=1, slave=self.unit_id)
-            if result.isError():
+            if result is None or result.isError() or not result.registers:
                 self.logger.warning(f"[{self.name}] Could not verify control mode (read error).")
                 return
 
