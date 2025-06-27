@@ -2,8 +2,10 @@ import time
 from interfaces.meter_interface import MeterInterface
 from interfaces.battery_interface import BatteryInterface
 from utils.logger import get_logger
+
 import signal
 import sys
+
 class Controller:
     def __init__(self, meter: MeterInterface, batteries: list[BatteryInterface], interval_seconds: int = 5):
         self.meter = meter
