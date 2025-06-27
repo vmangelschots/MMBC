@@ -88,7 +88,7 @@ class MqttPublisher:
                 payload["unit_of_measurement"] = sensor["unit"]
             if sensor["device_class"]:
                 payload["device_class"] = sensor["device_class"]
-                payload["state_class"] = "measurement"
+                payload["state_class"] = sensor.get("state_class", "measurement")
 
             self.client.publish(topic, json.dumps(payload), retain=True)
 
