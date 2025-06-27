@@ -13,11 +13,12 @@ BATTERY_MODBUS_CONTROL = 0x55aa  # Modbus control mode for Venus battery
 BATTERY_MODBUS_CONTROL_RELEASE = 0x55bb  # Modbus control release value
 
 class VenusBattery(BatteryInterface):
-    def __init__(self, ip: str, unit_id: int = 1, name: str = "Venus"):
+    def __init__(self, ip: str, unit_id: int = 1, name: str = "Venus",port: int= 502):
         self.ip = ip
         self.unit_id = unit_id
+        self.port = port
         self.name = name
-        self.client = ModbusTcpClient(host=self.ip, port=502)
+        self.client = ModbusTcpClient(host=self.ip, port=self.port)
         self.current_power = 0  # track last commanded power
         self.connected = False
         self.last_connect_attempt = None

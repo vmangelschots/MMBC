@@ -116,6 +116,7 @@ Desktop.ini
 
 # Environments
 .env
+.env.prod
 .venv
 env/
 venv/

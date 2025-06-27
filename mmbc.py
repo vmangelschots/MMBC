@@ -23,11 +23,13 @@ if __name__ == "__main__":
     meter_ip = os.getenv("P1_HOST")
     battery_1_ip = os.getenv("BATTERY_1_IP")
     battery_1_address = int(os.getenv("BATTERY_1_ADDRESS"))
+    battery_1_port = int(os.getenv("BATTERY_1_PORT", 502))  # Default port is 502 if not set
     if not battery_1_ip or not battery_1_address:
         raise ValueError("BATTERY_1_IP and BATTERY_1_ADDRESS environment variables must be set.")
 
     battery_2_ip = os.getenv("BATTERY_2_IP")
     battery_2_address = int(os.getenv("BATTERY_2_ADDRESS",0))
+    battery_2_port = int(os.getenv("BATTERY_2_PORT", 502))  # Default port is 502 if not set
     battery_2_present = False
     if not battery_2_ip or not battery_2_address:
         logger.info('BATTERY_2_IP and BATTERY_2_ADDRESS environment variables not set. Skipping battery 2.')
@@ -40,10 +42,10 @@ if __name__ == "__main__":
     meter = HomeWizardP1Meter(host=meter_ip)
     
     batteries = [
-        VenusBattery(ip=battery_1_ip, unit_id=battery_1_address, name="VenusBattery1")
+        VenusBattery(ip=battery_1_ip, unit_id=battery_1_address, name="VenusBattery1",port=battery_1_port)
     ]
     if battery_2_present:
-        batteries.append(VenusBattery(ip=battery_2_ip, unit_id=battery_2_address, name="VenusBattery2"))
+        batteries.append(VenusBattery(ip=battery_2_ip, unit_id=battery_2_address, name="VenusBattery2",port=battery_2_port))
     mqtt = MqttPublisher(batteries=batteries, interval=3)
     mqtt.start()
     controller = Controller(meter=meter, batteries=batteries, interval_seconds=3)
