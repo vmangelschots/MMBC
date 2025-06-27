@@ -3,6 +3,7 @@ import sys
 from core.controller import Controller
 from meters.homewizard_p1_meter import HomeWizardP1Meter
 from batteries.venus_battery import VenusBattery
+from core.mqtt_publisher import MqttPublisher
 import os
 from dotenv import load_dotenv
 from utils.logger import get_logger
@@ -43,6 +44,7 @@ if __name__ == "__main__":
     ]
     if battery_2_present:
         batteries.append(VenusBattery(ip=battery_2_ip, unit_id=battery_2_address, name="VenusBattery2"))
-
+    mqtt = MqttPublisher(batteries=batteries, interval=3)
+    mqtt.start()
     controller = Controller(meter=meter, batteries=batteries, interval_seconds=3)
     controller.run_forever()

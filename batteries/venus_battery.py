@@ -144,3 +144,19 @@ class VenusBattery(BatteryInterface):
         except Exception as e:
             self.logger.error(f"[{self.name}] Exception during read at {address}: {e}")
             return None
+    
+    def get_total_charged_kwh(self) -> float:
+        registers = self._safe_read(33000, count=2)
+        if registers is None or len(registers) < 2:
+            self.logger.warning(f"[{self.name}] Failed to read total charged energy")
+            return 0.0
+        raw = (registers[0] << 16) | registers[1]
+        return raw /100  # Wh to kWh
+
+    def get_total_discharged_kwh(self) -> float:
+        registers = self._safe_read(33002, count=2)
+        if registers is None or len(registers) < 2:
+            self.logger.warning(f"[{self.name}] Failed to read total discharged energy")
+            return 0.0
+        raw = (registers[0] << 16) | registers[1]
+        return raw /100
