@@ -4,6 +4,7 @@ import paho.mqtt.client as mqtt
 import os
 import json
 from dotenv import load_dotenv
+from utils.logger import get_logger
 
 load_dotenv()
 
@@ -23,14 +24,18 @@ class MqttPublisher:
         self.client = mqtt.Client()
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.running = False
+        self.logger = get_logger('MqttPublisher')
 
     def start(self):
-        self.client.connect(MQTT_HOST, MQTT_PORT, 60)
-        self.client.loop_start()
-        if MQTT_HA_DISCOVERY:
-            self.publish_discovery_config()
-        self.running = True
-        self.thread.start()
+        try:
+            self.client.connect(MQTT_HOST, MQTT_PORT, 60)
+            self.client.loop_start()
+            if MQTT_HA_DISCOVERY:
+                self.publish_discovery_config()
+            self.running = True
+            self.thread.start()
+        except Exception as e:
+            self.logger.error(f"[MQTT] Failed to connect: {e}")
 
     def stop(self):
         self.running = False
