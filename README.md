@@ -90,6 +90,6 @@ MQTT_TOPIC_PREFIX=mmbc/virtual
 
 MMBC is developed based on a real dual-battery setup. If you have a Marstek battery and are looking for more flexibility than the standard software this project might be for you.
 
-Feedback, feature requests en pull requests are welcome:
+Feedback, feature requests and pull requests are welcome:
 
 🔗 [https://github.com/vmangelschots/MMBC](https://github.com/vmangelschots/MMBC)
