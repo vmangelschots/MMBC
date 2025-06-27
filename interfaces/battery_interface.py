@@ -25,3 +25,13 @@ class BatteryInterface(ABC):
     def idle(self) -> None:
         """Stop charging or discharging."""
         pass
+
+    @abstractmethod
+    def get_total_charged_kwh(self) -> float:
+        """Return the total energy charged in kWh."""
+        pass
+
+    @abstractmethod
+    def get_total_discharged_kwh(self) -> float:
+        """Return the total energy discharged in kWh."""
+        pass
