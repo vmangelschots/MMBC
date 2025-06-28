@@ -46,7 +46,8 @@ if __name__ == "__main__":
     ]
     if battery_2_present:
         batteries.append(VenusBattery(ip=battery_2_ip, unit_id=battery_2_address, name="VenusBattery2",port=battery_2_port))
-    mqtt = MqttPublisher(batteries=batteries, interval=3)
-    mqtt.start()
+   
     controller = Controller(meter=meter, batteries=batteries, interval_seconds=3)
+    mqtt = MqttPublisher(controller,batteries=batteries, interval=3)
+    mqtt.start()
     controller.run_forever()

@@ -18,6 +18,7 @@ class Controller:
         self.DISCHARGE_MIN_SOC = 11
         self.CHARGE_LIMIT = 2500
         self.DISCHARGE_LIMIT = 2500
+        self._block_discharge = False  # Flag to block discharge if needed
         self.logger = get_logger('Controller')
 
     def run_forever(self):
@@ -50,7 +51,11 @@ class Controller:
                     if mode == "charge":
                         self.active_target.charge(power)
                     else:
-                        self.active_target.discharge(power)
+                        if self._block_discharge:
+                            self.logger.info(f"Discharge blocked, skipping discharge for {self.active_target.name}")
+                            self.active_target.idle()
+                        else:
+                            self.active_target.discharge(power)
                     self._idle_others(self.active_target)
                 else:
                     self._idle_all()
@@ -96,6 +101,9 @@ class Controller:
     def _idle_all(self):
         for b in self.batteries:
             b.idle()
+    def block_discharge(self,block: bool = False):
+        """Block or unblock discharge for all batteries."""
+        self._block_discharge = block
     def shutdown_all(self):
         for b in self.batteries:
             if hasattr(b, "shutdown"):
