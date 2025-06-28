@@ -48,6 +48,7 @@ MMBC publishes virtual battery data as a single entity:
 | `mmbc/status/pv_power`                   | 🔼 Publish    | Solar PV production power in watts (W)                           | integer (e.g. `2100`)       | Yes           |
 | `mmbc/status/charge_total_wh`           | 🔼 Publish    | Total energy charged into the battery (Wh)                       | unsigned int                | Yes           |
 | `mmbc/status/discharge_total_wh`        | 🔼 Publish    | Total energy discharged from the battery (Wh)                    | unsigned int                | Yes           |
+
 You can easily ingest this into **Home Assistant**, **Node-RED**, or any MQTT-compatible dashboard.
 
 ---
