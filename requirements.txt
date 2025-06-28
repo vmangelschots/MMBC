@@ -2,3 +2,4 @@ pymodbus
 requests
 python-dotenv
 paho-mqtt
+influxdb-client

@@ -4,6 +4,7 @@ from core.controller import Controller
 from meters.homewizard_p1_meter import HomeWizardP1Meter
 from batteries.venus_battery import VenusBattery
 from core.mqtt_publisher import MqttPublisher
+from telemetry.influx_logger import InfluxLogger
 import os
 from dotenv import load_dotenv
 from utils.logger import get_logger
@@ -16,10 +17,13 @@ def handle_shutdown(signum, frame):
     sys.exit(0)
 
 if __name__ == "__main__":
+    #setup logging
     logger = get_logger('MMBC')
+    # Handle shutdown signals
     signal.signal(signal.SIGINT, handle_shutdown)
     signal.signal(signal.SIGTERM, handle_shutdown)
-    # Real HomeWizard P1 meter
+
+    # Get environment variables
     meter_ip = os.getenv("P1_HOST")
     battery_1_ip = os.getenv("BATTERY_1_IP")
     battery_1_address = int(os.getenv("BATTERY_1_ADDRESS"))
@@ -38,7 +42,17 @@ if __name__ == "__main__":
         battery_2_present = True
     if not meter_ip:
         raise ValueError("P1_HOST environment variable not set. Please set it to your HomeWizard P1 meter's IP address.")
+    INFLUX_URL = os.getenv("INFLUX_URL")
+    INFLUX_TOKEN = os.getenv("INFLUX_TOKEN")
+    INFLUX_ORG = os.getenv("INFLUX_ORG")
+    INFLUX_BUCKET = os.getenv("INFLUX_BUCKET")
 
+    if INFLUX_URL and ( not INFLUX_TOKEN or not INFLUX_ORG or not INFLUX_BUCKET):
+        raise ValueError("InfluxDB environment variables (INFLUX_TOKEN, INFLUX_ORG, INFLUX_BUCKET) must be set when INFLUX_URL is set.")
+
+    influx_logger = InfluxLogger(INFLUX_URL, INFLUX_TOKEN, INFLUX_ORG, INFLUX_BUCKET)
+
+    # Initialize HomeWizard P1 Meter and Venus Batteries
     meter = HomeWizardP1Meter(host=meter_ip)
     
     batteries = [

@@ -2,6 +2,7 @@ import time
 from interfaces.meter_interface import MeterInterface
 from interfaces.battery_interface import BatteryInterface
 from utils.logger import get_logger
+from telemetry.influx_logger import InfluxLogger
 
 import signal
 import sys
@@ -65,7 +66,13 @@ class Controller:
                         b.discharge(split)
                     else:
                         b.idle()
-
+            # Log battery stats to InfluxDB if configured
+            influx_logger = InfluxLogger.get_logger()
+            for b in self.batteries:
+                influx_logger.log_battery_stats(
+                    battery_id=b.name,
+                    power_out=b.get_current_wattage(),
+                    soc=b.get_soc())
             time.sleep(self.interval)
 
     def _select_target(self, mode: str) -> BatteryInterface | None:
