@@ -17,8 +17,10 @@ MQTT_HA_DISCOVERY = os.getenv("MQTT_HA_DISCOVERY", "true").lower() == "true"
 HA_DISCOVERY_PREFIX = "homeassistant"
 DEVICE_ID = "MMBC_Combined_Battery"
 DEVICE_NAME = "MMBC Combined Battery"
+
 class MqttPublisher:
-    def __init__(self, batteries, interval=10):
+    def __init__(self,controller, batteries, interval=10):
+        self.controller = controller
         self.batteries = batteries
         self.interval = interval
         self.client = mqtt.Client()
@@ -26,12 +28,21 @@ class MqttPublisher:
         self.running = False
         self.logger = get_logger('MqttPublisher')
 
+    def on_mqtt_message(self,client, userdata, msg):
+        if msg.topic == "mmbc/control/block_discharge":
+            payload = msg.payload.decode().strip().lower()
+            blocked = payload == "true"
+            self.controller.block_discharge(blocked)
+            self.client.publish("mmbc/status/discharge_blocked", str(blocked).lower(), retain=True)
+            self.logger.info(f"[MQTT] Discharge block set to: {blocked}")
     def start(self):
         try:
             self.client.connect(MQTT_HOST, MQTT_PORT, 60)
+            self.client.on_message = self.on_mqtt_message
             self.client.loop_start()
             if MQTT_HA_DISCOVERY:
                 self.publish_discovery_config()
+            self.client.subscribe("mmbc/control/block_discharge")
             self.running = True
             self.thread.start()
         except Exception as e:
@@ -76,6 +87,7 @@ class MqttPublisher:
                 "state_class": "total_increasing"
             }
         ]
+
         for sensor in sensors:
             topic = f"{HA_DISCOVERY_PREFIX}/sensor/{DEVICE_ID}_{sensor['key']}/config"
             payload = {
@@ -94,9 +106,29 @@ class MqttPublisher:
             if sensor["device_class"]:
                 payload["device_class"] = sensor["device_class"]
                 payload["state_class"] = sensor.get("state_class", "measurement")
-
+            
             self.client.publish(topic, json.dumps(payload), retain=True)
-
+        #publish the discovery payload for discharge blocked switch
+        switch_payload = {
+            "name": "MMBC Block Discharge",
+            "unique_id": "mmbc_block_discharge_switch",
+            "command_topic": "mmbc/control/block_discharge",
+            "state_topic": "mmbc/status/discharge_blocked",
+            "payload_on": "true",
+            "payload_off": "false",
+            "icon": "mdi:battery-off",
+            "device": {
+                "identifiers": [DEVICE_ID],
+                "name": DEVICE_NAME,
+                "manufacturer": "MMBC",
+                "model": "VirtualBattery"
+            }
+        }
+        self.client.publish(
+            "homeassistant/switch/mmbc_block_discharge/config",
+            json.dumps(switch_payload),
+            retain=True
+        )
     def _run(self):
         while self.running:
             try:

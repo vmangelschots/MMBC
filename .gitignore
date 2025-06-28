@@ -117,6 +117,8 @@ Desktop.ini
 # Environments
 .env
 .env.prod
+.env.*
+!.env.example
 .venv
 env/
 venv/
