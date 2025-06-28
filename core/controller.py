@@ -73,7 +73,7 @@ class Controller:
             elif self.mode == BATTERY_HOLD:
                 if self.active_target:
                     if mode == "charge":
-                        self.active_target.charge(self.CHARGE_LIMIT)
+                        self.active_target.charge(power)
                     else:
                         self.active_target.idle()
                     self._idle_others(self.active_target)
