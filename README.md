@@ -37,13 +37,17 @@
 ## 🌐 MQTT Integration
 
 MMBC publishes virtual battery data as a single entity:
-
-| Topic                      | Description          |
-|---------------------------|----------------------|
-| `mmbc/virtual/soc`        | Average SoC (%)      |
-| `mmbc/virtual/power`      | Total power (W)      |
-| `mmbc/virtual/state`      | `charging` / `idle` / `discharging` |
-
+| **Topic**                                | **Direction** | **Description**                                                  | **Payload**                 | **Retained** |
+|------------------------------------------|---------------|------------------------------------------------------------------|------------------------------|---------------|
+| `mmbc/control/block_discharge`           | 🔽 Subscribe  | Command to enable/disable battery discharge                      | `"true"` / `"false"`        | No            |
+| `mmbc/status/discharge_blocked`          | 🔼 Publish    | Current discharge block state                                    | `"true"` / `"false"`        | Yes           |
+|                                          |               |                                                                  |                              |               |
+| `mmbc/status/soc`                        | 🔼 Publish    | Battery state of charge (%)                                      | float (e.g. `67.4`)         | Yes           |
+| `mmbc/status/battery_power`              | 🔼 Publish    | Battery power in watts (W); positive = charging, negative = discharging | integer (e.g. `-800`)       | Yes           |
+| `mmbc/status/grid_power`                 | 🔼 Publish    | Net grid power in watts (W); positive = import, negative = export | integer (e.g. `350`)        | Yes           |
+| `mmbc/status/pv_power`                   | 🔼 Publish    | Solar PV production power in watts (W)                           | integer (e.g. `2100`)       | Yes           |
+| `mmbc/status/charge_total_wh`           | 🔼 Publish    | Total energy charged into the battery (Wh)                       | unsigned int                | Yes           |
+| `mmbc/status/discharge_total_wh`        | 🔼 Publish    | Total energy discharged from the battery (Wh)                    | unsigned int                | Yes           |
 You can easily ingest this into **Home Assistant**, **Node-RED**, or any MQTT-compatible dashboard.
 
 ---
@@ -83,7 +87,7 @@ BATTERY_2_ADDRESS=1
 
 - [x] Multiple battery support
 - [x] MQTT publishing for Home Assistant
-- [ ] MQTT command input (e.g. override mode)
+- [x] MQTT command input (block discharge)
 - [ ] Automatic P1 discovery
 - [ ] Configurable thresholds and split logic
 - [ ] Live metrics (web dashboard, Prometheus, etc.)
