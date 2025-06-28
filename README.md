@@ -36,23 +36,31 @@
 
 ## 🌐 MQTT Integration
 
-MMBC publishes virtual battery data as a single entity:
-| **Topic**                                | **Direction** | **Description**                                                  | **Payload**                 | **Retained** |
-|------------------------------------------|---------------|------------------------------------------------------------------|------------------------------|---------------|
-| `mmbc/control/block_discharge`           | 🔽 Subscribe  | Command to enable/disable battery discharge                      | `"true"` / `"false"`        | No            |
-| `mmbc/status/discharge_blocked`          | 🔼 Publish    | Current discharge block state                                    | `"true"` / `"false"`        | Yes           |
-|                                          |               |                                                                  |                              |               |
-| `mmbc/status/soc`                        | 🔼 Publish    | Battery state of charge (%)                                      | float (e.g. `67.4`)         | Yes           |
-| `mmbc/status/battery_power`              | 🔼 Publish    | Battery power in watts (W); positive = charging, negative = discharging | integer (e.g. `-800`)       | Yes           |
-| `mmbc/status/grid_power`                 | 🔼 Publish    | Net grid power in watts (W); positive = import, negative = export | integer (e.g. `350`)        | Yes           |
-| `mmbc/status/pv_power`                   | 🔼 Publish    | Solar PV production power in watts (W)                           | integer (e.g. `2100`)       | Yes           |
-| `mmbc/status/charge_total_wh`           | 🔼 Publish    | Total energy charged into the battery (Wh)                       | unsigned int                | Yes           |
-| `mmbc/status/discharge_total_wh`        | 🔼 Publish    | Total energy discharged from the battery (Wh)                    | unsigned int                | Yes           |
+This section describes all MQTT topics used by MMBC for integration with Home Assistant, EVCC, and external systems.
+
+| **Topic**                                | **Direction** | **Description**                                                  | **Payload**                             | **Retained** |
+|------------------------------------------|---------------|------------------------------------------------------------------|------------------------------------------|---------------|
+| `mmbc/virtual/soc`                       | 🔼 Publish    | State of charge (%) for EVCC                                     | float (e.g. `64.2`)                      | Yes           |
+| `mmbc/virtual/power`                     | 🔼 Publish    | Battery power (W); positive = charging, negative = discharging   | integer (e.g. `-1200`)                   | Yes           |
+|                                          |               |                                                                  |                                          |               |
+| `mmbc/control/batterymode`              | 🔽 Subscribe  | Battery mode override (label format)                             | `"Normal"`, `"Hold"`, `"Charge"` | No            |
+| `mmbc/status/batterymode`               | 🔼 Publish    | Current battery mode (label format)                              | `"Normal"`, `"Hold"`, `"Charge"` | Yes           |
+|                                          |               |                                                                  |                                          |               |
+| `mmbc/virtual/charge_total_wh`          | 🔼 Publish    | Total energy charged into the battery (Wh)                       | unsigned int                             | Yes           |
+| `mmbc/virtual/discharge_total_wh`       | 🔼 Publish    | Total energy discharged from the battery (Wh)                    | unsigned int                             | Yes           |
+
 
 You can easily ingest this into **Home Assistant**, **Node-RED**, or any MQTT-compatible dashboard.
 
 ---
+### Battery Mode Labels
 
+The `batterymode` control and status topics use the following labels:
+
+- `"Normal"`: Battery can charge and discharge (default behavior)
+- `"Hold"`: Battery can charge, but discharging is disabled
+- `"Charge"`: Battery is forced to charge, regardless of grid import/export
+---
 ## 🧰 Requirements
 
 - Python 3.11+
@@ -90,14 +98,14 @@ BATTERY_2_ADDRESS=1
 - [x] MQTT publishing for Home Assistant
 - [x] MQTT command input (block discharge)
 - [ ] Automatic P1 discovery
-- [ ] Configurable thresholds and split logic
-- [ ] Live metrics (web dashboard, Prometheus, etc.)
+- [ ] Improved algorithm
+- [ ] Live metrics through Influxdb
 
 ---
 
 ## 📬 Feedback & Contributions
 
-MMBC is developed based on a real dual-battery setup. If you have a Marstek battery and are looking for more flexibility than the standard software this project might be for you.
+MMBC is developed based on a real dual-battery setup. If you have a Marstek battery and are looking for more flexibility than the standard software, this project might be for you.
 
 Feedback, feature requests and pull requests are welcome:
 

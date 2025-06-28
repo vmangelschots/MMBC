@@ -29,12 +29,18 @@ class MqttPublisher:
         self.logger = get_logger('MqttPublisher')
 
     def on_mqtt_message(self,client, userdata, msg):
-        if msg.topic == "mmbc/control/block_discharge":
+        if msg.topic == "mmbc/control/batterymode":
             payload = msg.payload.decode().strip().lower()
-            blocked = payload == "true"
-            self.controller.block_discharge(blocked)
-            self.client.publish("mmbc/status/discharge_blocked", str(blocked).lower(), retain=True)
-            self.logger.info(f"[MQTT] Discharge block set to: {blocked}")
+            if payload in ["normal", "hold", "charge"]:
+                if payload == "normal":
+                    mode = 1  # Normal mode
+                elif payload == "hold":
+                    mode = 2  # Hold mode
+                elif payload == "charge":
+                    mode = 3  # Charge mode
+            self.controller.set_battery_mode(mode)
+            self.client.publish("mmbc/status/batterymode", str(payload).lower(), retain=True)
+            self.logger.info(f"[MQTT] Batterymode set to: {payload}")
     def start(self):
         try:
             self.client.connect(MQTT_HOST, MQTT_PORT, 60)
@@ -42,7 +48,7 @@ class MqttPublisher:
             self.client.loop_start()
             if MQTT_HA_DISCOVERY:
                 self.publish_discovery_config()
-            self.client.subscribe("mmbc/control/block_discharge")
+            self.client.subscribe("mmbc/control/batterymode")
             self.running = True
             self.thread.start()
         except Exception as e:
@@ -110,13 +116,12 @@ class MqttPublisher:
             self.client.publish(topic, json.dumps(payload), retain=True)
         #publish the discovery payload for discharge blocked switch
         switch_payload = {
-            "name": "MMBC Block Discharge",
-            "unique_id": "mmbc_block_discharge_switch",
-            "command_topic": "mmbc/control/block_discharge",
-            "state_topic": "mmbc/status/discharge_blocked",
-            "payload_on": "true",
-            "payload_off": "false",
-            "icon": "mdi:battery-off",
+            "name": "MMBC Battery Mode",
+            "unique_id": "mmbc_batterymode_select",
+            "state_topic": "mmbc/status/batterymode",
+            "command_topic": "mmbc/control/batterymode",
+            "options": ["Normal", "Hold", "Charge"],
+            "icon": "mdi:battery-settings",
             "device": {
                 "identifiers": [DEVICE_ID],
                 "name": DEVICE_NAME,
@@ -125,7 +130,7 @@ class MqttPublisher:
             }
         }
         self.client.publish(
-            "homeassistant/switch/mmbc_block_discharge/config",
+            "homeassistant/select/mmbc_batterymode/config",
             json.dumps(switch_payload),
             retain=True
         )

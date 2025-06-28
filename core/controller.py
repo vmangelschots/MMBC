@@ -6,6 +6,10 @@ from utils.logger import get_logger
 import signal
 import sys
 
+BATTERY_NORMAL = 1
+BATTERY_HOLD = 2
+BATTERY_CHARGE = 3
+
 class Controller:
     def __init__(self, meter: MeterInterface, batteries: list[BatteryInterface], interval_seconds: int = 5):
         self.meter = meter
@@ -18,7 +22,7 @@ class Controller:
         self.DISCHARGE_MIN_SOC = 11
         self.CHARGE_LIMIT = 2500
         self.DISCHARGE_LIMIT = 2500
-        self._block_discharge = False  # Flag to block discharge if needed
+        self.mode = BATTERY_NORMAL  # Flag to block discharge if needed
         self.logger = get_logger('Controller')
 
     def run_forever(self):
@@ -39,38 +43,45 @@ class Controller:
 
             mode = "discharge" if adjusted_power > 0 else "charge"
             power = abs(adjusted_power)
+            if self.mode == BATTERY_NORMAL:
+                if power <= max(self.CHARGE_LIMIT, self.DISCHARGE_LIMIT):
+                    if (self.active_target is None or
+                        self._target_invalid(mode) or
+                        now - self.last_selection_time > self.selection_interval):
+                        self.active_target = self._select_target(mode)
+                        self.last_selection_time = now
 
-            if power <= max(self.CHARGE_LIMIT, self.DISCHARGE_LIMIT):
-                if (self.active_target is None or
-                    self._target_invalid(mode) or
-                    now - self.last_selection_time > self.selection_interval):
-                    self.active_target = self._select_target(mode)
-                    self.last_selection_time = now
-
-                if self.active_target:
-                    if mode == "charge":
-                        self.active_target.charge(power)
-                    else:
-                        if self._block_discharge:
-                            self.logger.info(f"Discharge blocked, skipping discharge for {self.active_target.name}")
-                            self.active_target.idle()
+                    if self.active_target:
+                        if mode == "charge":
+                            self.active_target.charge(power)
                         else:
                             self.active_target.discharge(power)
+                        self._idle_others(self.active_target)
+                    else:
+                        self._idle_all()
+
+                else:
+                    split = min(power / len(self.batteries), self.CHARGE_LIMIT if mode == "charge" else self.DISCHARGE_LIMIT)
+                    for b in self.batteries:
+                        soc = b.get_soc()
+                        if mode == "charge" and soc < self.CHARGE_MAX_SOC:
+                            b.charge(split)
+                        elif mode == "discharge" and soc > self.DISCHARGE_MIN_SOC:
+                            b.discharge(split)
+                        else:
+                            b.idle()
+            elif self.mode == BATTERY_HOLD:
+                if self.active_target:
+                    if mode == "charge":
+                        self.active_target.charge(self.CHARGE_LIMIT)
+                    else:
+                        self.active_target.idle()
                     self._idle_others(self.active_target)
                 else:
                     self._idle_all()
-
-            else:
-                split = min(power / len(self.batteries), self.CHARGE_LIMIT if mode == "charge" else self.DISCHARGE_LIMIT)
+            elif self.mode == BATTERY_CHARGE:
                 for b in self.batteries:
-                    soc = b.get_soc()
-                    if mode == "charge" and soc < self.CHARGE_MAX_SOC:
-                        b.charge(split)
-                    elif mode == "discharge" and soc > self.DISCHARGE_MIN_SOC:
-                        b.discharge(split)
-                    else:
-                        b.idle()
-
+                        b.charge(self.CHARGE_LIMIT)
             time.sleep(self.interval)
 
     def _select_target(self, mode: str) -> BatteryInterface | None:
@@ -101,9 +112,9 @@ class Controller:
     def _idle_all(self):
         for b in self.batteries:
             b.idle()
-    def block_discharge(self,block: bool = False):
+    def set_battery_mode(self,mode: int = BATTERY_NORMAL ):
         """Block or unblock discharge for all batteries."""
-        self._block_discharge = block
+        self.mode = mode
     def shutdown_all(self):
         for b in self.batteries:
             if hasattr(b, "shutdown"):
