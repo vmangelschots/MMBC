@@ -71,14 +71,33 @@ class Controller:
                         else:
                             b.idle()
             elif self.mode == BATTERY_HOLD:
-                if self.active_target:
-                    if mode == "charge":
-                        self.active_target.charge(self.CHARGE_LIMIT)
+                if power <= max(self.CHARGE_LIMIT, self.DISCHARGE_LIMIT):
+                    if (self.active_target is None or
+                        self._target_invalid(mode) or
+                        now - self.last_selection_time > self.selection_interval):
+                        self.active_target = self._select_target(mode)
+                        self.last_selection_time = now
+
+                    if self.active_target:
+                        if mode == "charge":
+                            self.active_target.charge(power)
+                            self._idle_others(self.active_target)
+                        else:
+                            self._idle_all()
+                        
                     else:
-                        self.active_target.idle()
-                    self._idle_others(self.active_target)
+                        self._idle_all()
+
                 else:
-                    self._idle_all()
+                    split = min(power / len(self.batteries), self.CHARGE_LIMIT if mode == "charge" else self.DISCHARGE_LIMIT)
+                    for b in self.batteries:
+                        soc = b.get_soc()
+                        if mode == "charge" and soc < self.CHARGE_MAX_SOC:
+                            b.charge(split)
+                        elif mode == "discharge" and soc > self.DISCHARGE_MIN_SOC:
+                            b.discharge(split)
+                        else:
+                            b.idle()
             elif self.mode == BATTERY_CHARGE:
                 for b in self.batteries:
                         b.charge(self.CHARGE_LIMIT)
