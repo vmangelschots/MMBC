@@ -1,5 +1,6 @@
 # MMBC — Multiple Marstek Battery Controller
 [![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2Fvmangelschots%2Fmmbc-blue?logo=docker)](https://github.com/users/vmangelschots/packages/container/package/mmbc)
+---
 **MMBC** is a modular Python-based controller for Marstek Venus E batteries. It reads live power data from a HomeWizard P1 meter and intelligently controls one or more batteries over Modbus TCP to keep your electricity meter as close to zero as possible (*nul op de meter*).
 
 > ⚠️ **Actively Developed**  
