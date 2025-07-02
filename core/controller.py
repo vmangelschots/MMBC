@@ -71,14 +71,7 @@ class Controller:
                         else:
                             b.idle()
             elif self.mode == BATTERY_HOLD:
-                if self.active_target:
-                    if mode == "charge":
-                        self.active_target.charge(power)
-                    else:
-                        self.active_target.idle()
-                    self._idle_others(self.active_target)
-                else:
-                    self._idle_all()
+                pass
             elif self.mode == BATTERY_CHARGE:
                 for b in self.batteries:
                         b.charge(self.CHARGE_LIMIT)
