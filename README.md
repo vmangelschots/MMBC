@@ -1,5 +1,5 @@
 # MMBC — Multiple Marstek Battery Controller
-
+[![Docker Image](https://img.shields.io/badge/docker-ghcr.io%2Fvmangelschots%2Fmmbc-blue?logo=docker)](https://github.com/users/vmangelschots/packages/container/package/mmbc)
 **MMBC** is a modular Python-based controller for Marstek Venus E batteries. It reads live power data from a HomeWizard P1 meter and intelligently controls one or more batteries over Modbus TCP to keep your electricity meter as close to zero as possible (*nul op de meter*).
 
 > ⚠️ **Actively Developed**  
@@ -15,22 +15,48 @@
 - Publishes aggregated battery data over **MQTT** for easy integration with **Home Assistant**
 
 ---
+## 📦 Quick Start (Docker)
 
+```bash
+docker run --env-file .env --restart unless-stopped ghcr.io/vmangelschots/mmbc:latest
+```
+
+Make sure to configure your `.env` file with:
+
+```env
+P1_API_URL=http://192.168.x.x/api/v1/data
+MQTT_HOST=192.168.x.x
+MQTT_PORT=1883
+MQTT_TOPIC_PREFIX=mmbc/virtual
+BATTERY_1_IP=192.168.1.101
+BATTERY_1_ADDRESS=1
+BATTERY_2_IP=192.168.1.102
+BATTERY_2_ADDRESS=1
+```
+
+---
 ## ⚙️ Control Logic
 
-- If the **net power is under 2500W**:
-  - Only **one battery** is used, to maximize inverter efficiency
-  - Chooses the best battery based on **State of Charge (SoC)**:
-    - Charge: battery with **lowest SoC**
-    - Discharge: battery with **highest SoC**
+- If the **adjusted net power** (meter power + battery output) is within **±30W**, all batteries are set to **idle**.
+
+- If the **absolute power is under 2500W**:
+  - Only a **single battery** is used, to maximize inverter efficiency and reduce switching.
+  - The selection is based on **State of Charge (SoC)**:
+    - **Charging** → battery with the **lowest SoC**
+    - **Discharging** → battery with the **highest SoC**
+  - This selection is **cached** for 5 minutes to minimize switching, unless the chosen battery becomes ineligible (e.g., SoC out of bounds).
+
 - If the **power exceeds 2500W**:
-  - The load is **split between all eligible batteries**
-- A battery is eligible when:
-  - SoC < 100% (for charging)
-  - SoC > 11% (for discharging)
-- Battery selection is **reevaluated**:
-  - Every 5 minutes
-  - Or immediately when the current battery becomes ineligible
+  - The load is **split across multiple eligible batteries**, capped at 2500W per battery.
+
+- A battery is considered **eligible** when:
+  - **Charging** → SoC < 100%
+  - **Discharging** → SoC > 11%
+
+- Battery priority is **reevaluated**:
+  - Automatically every **5 minutes**
+  - Or **immediately** if a selected battery becomes **ineligible**
+
 
 ---
 
@@ -70,27 +96,7 @@ The `batterymode` control and status topics use the following labels:
 
 ---
 
-## 📦 Quick Start (Docker)
 
-```bash
-docker build -t mmbc .
-docker run --env-file .env --network host --restart unless-stopped mmbc
-```
-
-Make sure to configure your `.env` file with:
-
-```env
-P1_API_URL=http://192.168.x.x/api/v1/data
-MQTT_HOST=192.168.x.x
-MQTT_PORT=1883
-MQTT_TOPIC_PREFIX=mmbc/virtual
-BATTERY_1_IP=192.168.1.101
-BATTERY_1_ADDRESS=1
-BATTERY_2_IP=192.168.1.102
-BATTERY_2_ADDRESS=1
-```
-
----
 
 ## 🌟 Roadmap / Wishlist
 
