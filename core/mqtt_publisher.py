@@ -38,6 +38,10 @@ class MqttPublisher:
                     mode = 2  # Hold mode
                 elif payload == "charge":
                     mode = 3  # Charge mode
+                else:
+                    mode = 1  # Default to normal if invalid
+                    self.logger.warning(f"[MQTT] Invalid battery mode received: {payload}. Defaulting to 'normal'.")
+                    payload = "normal"
             self.controller.set_battery_mode(mode)
             self.client.publish("mmbc/status/batterymode", str(payload).lower(), retain=True)
             self.logger.info(f"[MQTT] Batterymode set to: {payload}")
