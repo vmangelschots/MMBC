@@ -13,6 +13,8 @@ MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
 MQTT_TOPIC_PREFIX = os.getenv("MQTT_TOPIC_PREFIX", "mmbc/virtual")
 
 MQTT_HA_DISCOVERY = os.getenv("MQTT_HA_DISCOVERY", "true").lower() == "true"
+MQTT_USERNAME = os.getenv("MQTT_USERNAME")
+MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
 
 HA_DISCOVERY_PREFIX = "homeassistant"
 DEVICE_ID = "MMBC_Combined_Battery"
@@ -24,6 +26,7 @@ class MqttPublisher:
         self.batteries = batteries
         self.interval = interval
         self.client = mqtt.Client()
+
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.running = False
         self.logger = get_logger('MqttPublisher')
@@ -47,6 +50,8 @@ class MqttPublisher:
             self.logger.info(f"[MQTT] Batterymode set to: {payload}")
     def start(self):
         try:
+            if MQTT_USERNAME and MQTT_PASSWORD:
+                self.client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
             self.client.connect(MQTT_HOST, MQTT_PORT, 60)
             self.client.on_message = self.on_mqtt_message
             self.client.loop_start()
