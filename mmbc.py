@@ -7,6 +7,7 @@ from core.mqtt_publisher import MqttPublisher
 import os
 from dotenv import load_dotenv
 from utils.logger import get_logger
+from core.config_loader import get_config_value
 
 load_dotenv()
 
@@ -20,16 +21,16 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, handle_shutdown)
     signal.signal(signal.SIGTERM, handle_shutdown)
     # Real HomeWizard P1 meter
-    meter_ip = os.getenv("P1_HOST")
-    battery_1_ip = os.getenv("BATTERY_1_IP")
-    battery_1_address = int(os.getenv("BATTERY_1_ADDRESS"))
-    battery_1_port = int(os.getenv("BATTERY_1_PORT", 502))  # Default port is 502 if not set
+    meter_ip = get_config_value("P1_HOST")
+    battery_1_ip = get_config_value("BATTERY_1_IP")
+    battery_1_address = int(get_config_value("BATTERY_1_ADDRESS"))
+    battery_1_port = int(get_config_value("BATTERY_1_PORT", 502))  # Default port is 502 if not set
     if not battery_1_ip or not battery_1_address:
         raise ValueError("BATTERY_1_IP and BATTERY_1_ADDRESS environment variables must be set.")
 
-    battery_2_ip = os.getenv("BATTERY_2_IP")
-    battery_2_address = int(os.getenv("BATTERY_2_ADDRESS",0))
-    battery_2_port = int(os.getenv("BATTERY_2_PORT", 502))  # Default port is 502 if not set
+    battery_2_ip = get_config_value("BATTERY_2_IP")
+    battery_2_address = int(get_config_value("BATTERY_2_ADDRESS",0))
+    battery_2_port = int(get_config_value("BATTERY_2_PORT", 502))  # Default port is 502 if not set
     battery_2_present = False
     if not battery_2_ip or not battery_2_address:
         logger.info('BATTERY_2_IP and BATTERY_2_ADDRESS environment variables not set. Skipping battery 2.')

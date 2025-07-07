@@ -3,6 +3,7 @@ from interfaces.meter_interface import MeterInterface
 from interfaces.battery_interface import BatteryInterface
 from utils.logger import get_logger
 
+
 import signal
 import sys
 
