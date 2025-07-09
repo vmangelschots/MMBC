@@ -34,17 +34,18 @@ class MqttPublisher:
     def on_mqtt_message(self,client, userdata, msg):
         if msg.topic == "mmbc/control/batterymode":
             payload = msg.payload.decode().strip().lower()
-            if payload in ["normal", "hold", "charge"]:
-                if payload == "normal":
-                    mode = 1  # Normal mode
-                elif payload == "hold":
-                    mode = 2  # Hold mode
-                elif payload == "charge":
-                    mode = 3  # Charge mode
-                else:
-                    mode = 1  # Default to normal if invalid
-                    self.logger.warning(f"[MQTT] Invalid battery mode received: {payload}. Defaulting to 'normal'.")
-                    payload = "normal"
+            if payload == "normal":
+                mode = 1  # Normal mode
+            elif payload == "hold":
+                mode = 2  # Hold mode
+            elif payload == "charge":
+                mode = 3  # Charge mode
+            elif payload == "selfcontrol":
+                mode = 4
+            else:
+                mode = 1  # Default to normal if invalid
+                self.logger.warning(f"[MQTT] Invalid battery mode received: {payload}. Defaulting to 'normal'.")
+                payload = "normal"
             self.controller.set_battery_mode(mode)
             self.client.publish("mmbc/status/batterymode", str(payload).lower(), retain=True)
             self.logger.info(f"[MQTT] Batterymode set to: {payload}")
@@ -129,7 +130,7 @@ class MqttPublisher:
             "unique_id": "mmbc_batterymode_select",
             "state_topic": "mmbc/status/batterymode",
             "command_topic": "mmbc/control/batterymode",
-            "options": ["Normal", "Hold", "Charge"],
+            "options": ["Normal", "Hold", "Charge", 'SelfControl'],
             "icon": "mdi:battery-settings",
             "device": {
                 "identifiers": [DEVICE_ID],

@@ -10,6 +10,7 @@ import sys
 BATTERY_NORMAL = 1
 BATTERY_HOLD = 2
 BATTERY_CHARGE = 3
+BATTERY_SELFCONTROL = 4
 CHARGING = 1
 DISCHARGING = 2
 
@@ -66,7 +67,11 @@ class Controller:
             elif self.mode == BATTERY_CHARGE:
                 for b in self.batteries:
                         b.charge(self.CHARGE_LIMIT)
+            elif self.mode == BATTERY_SELFCONTROL:
+                pass # do nothing, let the batteries control themselves
+su
             time.sleep(self.interval)
+
 
     def _select_target(self, mode: str) -> BatteryInterface | None:
         candidates = []
@@ -98,6 +103,14 @@ class Controller:
             b.idle()
     def set_battery_mode(self,mode: int = BATTERY_NORMAL ):
         """Block or unblock discharge for all batteries."""
+        if mode is BATTERY_SELFCONTROL:
+            for b in self.batteries:
+                b.release()
+            self.logger.info("Self-control mode enabled. All batteries will control themselves.")
+        else:
+            for b in self.batteries:
+                b.aquire_control()
+            self.logger.info(f"Battery mode set to {mode}. All batteries will follow this mode.")
         self.mode = mode
     def shutdown_all(self):
         for b in self.batteries:
