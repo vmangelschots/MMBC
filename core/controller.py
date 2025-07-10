@@ -69,7 +69,6 @@ class Controller:
                         b.charge(self.CHARGE_LIMIT)
             elif self.mode == BATTERY_SELFCONTROL:
                 pass # do nothing, let the batteries control themselves
-su
             time.sleep(self.interval)
 
 
