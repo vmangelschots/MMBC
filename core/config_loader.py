@@ -1,17 +1,20 @@
-import os
 import json
+import os
 from utils.logger import get_logger
 
-def get_config_value(key: str, default=None):
-    """Get a config value from /data/options.json or environment."""
-    # Try options.json (Home Assistant add-on)
-    try:
-        with open("/data/options.json", "r") as f:
-            options = json.load(f)
-            if key in options:
-                return options[key]
-    except Exception:
-        get_logger("Config").debug(f"Failed to read /data/options.json for key: {key}. Using environment value.")
+logger = get_logger("Config")
 
-    # Fallback to environment
-    return os.getenv(key, default)
+def load_config():
+    config_path = "/data/options.json"
+
+    # Try loading from file (preferred)
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.warning(f"Error reading {config_path}: {e}")
+
+    # Fallback: load all env vars starting with MMBC_
+    logger.info("Falling back to environment variables.")
+    return {k[5:]: v for k, v in os.environ.items() if k.startswith("MMBC_")}
