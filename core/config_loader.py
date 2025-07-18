@@ -5,8 +5,8 @@ from utils.logger import get_logger
 logger = get_logger("Config")
 
 def load_config():
-    config_path = "/data/options.json"
-
+    #config_path = "/data/options.json"
+    config_path = "options.json"
     # Try loading from file (preferred)
     if os.path.exists(config_path):
         try:

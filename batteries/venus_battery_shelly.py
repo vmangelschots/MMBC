@@ -16,7 +16,7 @@ class VenusBatteryShelly(BatteryInterface):
         self.unit_id = unit_id
         self.port = port
         self.name = name
-        self.client = ModbusTcpClient(host=self.ip, port=self.port)
+        self.client = ModbusTcpClient(host=self.modbus_ip, port=self.port)
         self.current_power = 0
         self.connected = False
         self.last_connect_attempt = None
@@ -44,7 +44,7 @@ class VenusBatteryShelly(BatteryInterface):
             if self.client.connect():
                 self.connected = True
                 self.retry_backoff = 1
-                self.logger.info(f"[{self.name}] Connected to battery at {self.ip}")
+                self.logger.info(f"[{self.name}] Connected to battery at {self.modbus_ip}")
             else:
                 self.connected = False
                 self.retry_backoff = min(self.retry_backoff * 2, 10)
@@ -56,9 +56,6 @@ class VenusBatteryShelly(BatteryInterface):
 
 
     def get_soc(self) -> float:
-        if not self.released and (datetime.now() - self.last_control_mode_check).total_seconds() > 60:
-            self._check_control_mode()
-            self.last_control_mode_check = datetime.now()
         registers = self._safe_read(REG_SOC, count=1)
         if registers is None or len(registers) < 1:
             raise Exception("Failed to read SOC")

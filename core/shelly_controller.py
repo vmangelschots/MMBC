@@ -26,8 +26,8 @@ class ShellyController:
         """Starts the internal UDP Shelly 3EM emulator in a background thread."""
         def server_thread():
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            sock.bind(("", self._udp_port))
-            print(f"[ShellyController] UDP proxy listening on port {self._udp_port}")
+            sock.bind(("", 2020))
+            print(f"[ShellyController] UDP proxy listening on port 2020")
 
             while True:
                 try:
