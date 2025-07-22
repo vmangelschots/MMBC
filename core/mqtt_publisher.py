@@ -47,7 +47,7 @@ class MqttPublisher:
                 self.logger.warning(f"[MQTT] Invalid battery mode received: {payload}. Defaulting to 'normal'.")
                 payload = "normal"
             self.controller.set_battery_mode(mode)
-            self.client.publish("mmbc/status/batterymode", str(payload).lower(), retain=True)
+            self.client.publish("mmbc/status/batterymode", str(payload).capitalize(), retain=True)
             self.logger.info(f"[MQTT] Batterymode set to: {payload}")
     def start(self):
         try:
@@ -104,6 +104,7 @@ class MqttPublisher:
             }
         ]
 
+        # Combined metrics
         for sensor in sensors:
             topic = f"{HA_DISCOVERY_PREFIX}/sensor/{DEVICE_ID}_{sensor['key']}/config"
             payload = {
@@ -122,15 +123,44 @@ class MqttPublisher:
             if sensor["device_class"]:
                 payload["device_class"] = sensor["device_class"]
                 payload["state_class"] = sensor.get("state_class", "measurement")
-            
+
             self.client.publish(topic, json.dumps(payload), retain=True)
-        #publish the discovery payload for discharge blocked switch
+
+        # Per-battery metrics
+        for index, battery in enumerate(self.batteries, start=1):
+            device_id = f"MMBC_Battery_{index}"
+            device_name = f"MMBC Battery {index} ({battery.name})"
+            for sensor in sensors:
+                if sensor["key"] == "state":
+                    continue  # skip per-battery state
+
+                topic = f"{HA_DISCOVERY_PREFIX}/sensor/{device_id}_{sensor['key']}/config"
+                payload = {
+                    "name": f"{device_name} {sensor['name']}",
+                    "state_topic": f"{MQTT_TOPIC_PREFIX}/battery{index}/{sensor['key']}",
+                    "unique_id": f"{device_id}_{sensor['key']}",
+                    "device": {
+                        "identifiers": [device_id],
+                        "name": device_name,
+                        "manufacturer": "MMBC",
+                        "model": "VirtualBattery"
+                    }
+                }
+                if sensor["unit"]:
+                    payload["unit_of_measurement"] = sensor["unit"]
+                if sensor["device_class"]:
+                    payload["device_class"] = sensor["device_class"]
+                    payload["state_class"] = sensor.get("state_class", "measurement")
+
+                self.client.publish(topic, json.dumps(payload), retain=True)
+
+        # Battery mode switch
         switch_payload = {
             "name": "MMBC Battery Mode",
             "unique_id": "mmbc_batterymode_select",
             "state_topic": "mmbc/status/batterymode",
             "command_topic": "mmbc/control/batterymode",
-            "options": ["Normal", "Hold", "Charge", 'SelfControl'],
+            "options": ["Normal", "Hold", "Charge", "Selfcontrol"],
             "icon": "mdi:battery-settings",
             "device": {
                 "identifiers": [DEVICE_ID],
@@ -140,7 +170,7 @@ class MqttPublisher:
             }
         }
         self.client.publish(
-            "homeassistant/select/mmbc_batterymode/config",
+            f"{HA_DISCOVERY_PREFIX}/select/mmbc_batterymode/config",
             json.dumps(switch_payload),
             retain=True
         )
@@ -152,7 +182,10 @@ class MqttPublisher:
                 count = 0
                 total_charged = 0
                 total_discharged = 0
+                index = 0
                 for battery in self.batteries:
+                    index += 1
+                    name = battery.name
                     soc = battery.get_soc()
                     power = battery.get_current_wattage()
                     charged = battery.get_total_charged_kwh()
@@ -162,6 +195,10 @@ class MqttPublisher:
                     total_charged += charged
                     total_discharged += discharged
                     count += 1
+                    self.client.publish(f"{MQTT_TOPIC_PREFIX}/battery{index}/soc", soc)
+                    self.client.publish(f"{MQTT_TOPIC_PREFIX}/battery{index}/power", power)
+                    self.client.publish(f"{MQTT_TOPIC_PREFIX}/battery{index}/charged_energy", round(charged, 3))
+                    self.client.publish(f"{MQTT_TOPIC_PREFIX}/battery{index}/discharged_energy", round(discharged, 3))
 
                 avg_soc = round(total_soc / count, 2) if count else 0
                 state = "idle"

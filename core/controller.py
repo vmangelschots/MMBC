@@ -26,8 +26,9 @@ class Controller:
         self.DISCHARGE_MIN_SOC = 11
         self.CHARGE_LIMIT = 2500
         self.DISCHARGE_LIMIT = 2500
-        self.mode = BATTERY_NORMAL  # Flag to block discharge if needed
+        self.mode = BATTERY_SELFCONTROL  # Flag to block discharge if needed
         self.logger = get_logger('Controller')
+        self.set_battery_mode(BATTERY_SELFCONTROL)  # Default to self-control mode
 
     def run_forever(self):
         while True:
