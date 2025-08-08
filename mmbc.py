@@ -38,16 +38,29 @@ if __name__ == "__main__":
     else: 
         logger.info(f'BATTERY_2_IP and BATTERY_2_ADDRESS environment variables set. Battery 2 will be used.')
         battery_2_present = True
+    battery_3_ip = get_config_value("BATTERY_2_IP")
+    battery_3_address = int(get_config_value("BATTERY_2_ADDRESS",0))
+    battery_3_port = int(get_config_value("BATTERY_2_PORT", 502))  # Default port is 502 if not set
+    battery_3_present = False
+    if not battery_3_ip or not battery_3_address:
+        logger.info('BATTERY_3_IP and BATTERY_3_ADDRESS environment variables not set. Skipping battery 3.')
+    else: 
+        logger.info(f'BATTERY_3_IP and BATTERY_3_ADDRESS environment variables set. Battery 3 will be used.')
+        battery_3_present = True
     if not meter_ip:
-        raise ValueError("P1_HOST environment variable not set. Please set it to your HomeWizard P1 meter's IP address.")
-
-    meter = HomeWizardP1Meter(host=meter_ip)
+        logger.info('P1_HOST environment variable not set. Not using HomeWizard P1 meter.')
+        #raise ValueError("P1_HOST environment variable not set. Please set it to your HomeWizard P1 meter's IP address.")
+        meter = None
+    else:
+        meter = HomeWizardP1Meter(host=meter_ip)
     
     batteries = [
         VenusBattery(ip=battery_1_ip, unit_id=battery_1_address, name="VenusBattery1",port=battery_1_port)
     ]
     if battery_2_present:
         batteries.append(VenusBattery(ip=battery_2_ip, unit_id=battery_2_address, name="VenusBattery2",port=battery_2_port))
+    if battery_3_present:
+        batteries.append(VenusBattery(ip=battery_3_ip, unit_id=battery_3_address, name="VenusBattery3",port=battery_3_port))
    
     controller = Controller(meter=meter, batteries=batteries, interval_seconds=3)
     mqtt = MqttPublisher(controller,batteries=batteries, interval=3)

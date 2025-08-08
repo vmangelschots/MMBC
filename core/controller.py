@@ -33,7 +33,10 @@ class Controller:
     def run_forever(self):
         while True:
             now = time.time()
-            net_power = self.meter.get_net_power() # Get the net power from the meter
+            if self.meter:
+                net_power = self.meter.get_net_power() # Get the net power from the meter
+            else:
+                net_power = 0
 
             #calculate the total battery power and adjust the net power accordingly
             battery_power = sum(b.get_current_wattage() for b in self.batteries) # 
@@ -60,7 +63,7 @@ class Controller:
             elif self.mode == BATTERY_HOLD:
 
                 if mode == CHARGING:
-                    self._charge(power)
+                    self._idle_all(power)
                 else:
                     self._idle_all()
             #the easiest case: Just charge all batteries
