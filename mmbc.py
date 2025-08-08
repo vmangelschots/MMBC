@@ -18,7 +18,7 @@ def handle_shutdown(signum, frame):
 
 if __name__ == "__main__":
     logger = get_logger('MMBC')
-    logger.info("Starting MMBC (Multi Meter Battery Controller) Version 1.0.0...")
+    logger.info("Starting MMBC (Multi Meter Battery Controller) Version 1.0.1...")
     signal.signal(signal.SIGINT, handle_shutdown)
     signal.signal(signal.SIGTERM, handle_shutdown)
     # Real HomeWizard P1 meter
@@ -39,7 +39,7 @@ if __name__ == "__main__":
         logger.info(f'BATTERY_2_IP and BATTERY_2_ADDRESS environment variables set. Battery 2 will be used.')
         battery_2_present = True
     battery_3_ip = get_config_value("BATTERY_3_IP")
-    battery_3_address = int(get_config_value("BATERY_3_ADDRESS",0))
+    battery_3_address = int(get_config_value("BATTERY_3_ADDRESS",0))
     battery_3_port = int(get_config_value("BATTERY_3_PORT", 502))  # Default port is 502 if not set
     battery_3_present = False
     if not battery_3_ip or not battery_3_address:
