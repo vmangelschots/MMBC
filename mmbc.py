@@ -18,7 +18,7 @@ def handle_shutdown(signum, frame):
 
 if __name__ == "__main__":
     logger = get_logger('MMBC')
-    logger.info("Starting MMBC (Multi Meter Battery Controller) Version 0.4.2...")
+    logger.info("Starting MMBC (Multi Meter Battery Controller) Version 1.0.0...")
     signal.signal(signal.SIGINT, handle_shutdown)
     signal.signal(signal.SIGTERM, handle_shutdown)
     # Real HomeWizard P1 meter
