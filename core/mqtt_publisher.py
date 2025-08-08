@@ -13,7 +13,7 @@ MQTT_HOST = get_config_value("MQTT_HOST","localhost")
 MQTT_PORT = int(get_config_value("MQTT_PORT", 1883))
 MQTT_TOPIC_PREFIX = get_config_value("MQTT_TOPIC_PREFIX","mmbc/virtual")
 
-MQTT_HA_DISCOVERY = get_config_value("MQTT_HA_DISCOVERY", "true").lower() == "true"
+MQTT_HA_DISCOVERY = True #get_config_value("MQTT_HA_DISCOVERY", "true").lower() == "true" TODO: Fix this in the future
 MQTT_USERNAME = get_config_value("MQTT_USERNAME")
 MQTT_PASSWORD = get_config_value("MQTT_PASSWORD")
 
