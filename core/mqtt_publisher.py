@@ -1,6 +1,7 @@
 import time
 import threading
 import paho.mqtt.client as mqtt
+from core.config_loader import get_config_value
 import os
 import json
 from dotenv import load_dotenv
@@ -8,13 +9,13 @@ from utils.logger import get_logger
 
 load_dotenv()
 
-MQTT_HOST = os.getenv("MQTT_HOST", "localhost")
-MQTT_PORT = int(os.getenv("MQTT_PORT", 1883))
-MQTT_TOPIC_PREFIX = os.getenv("MQTT_TOPIC_PREFIX", "mmbc/virtual")
+MQTT_HOST = get_config_value("MQTT_HOST","localhost")
+MQTT_PORT = int(get_config_value("MQTT_PORT"), 1883)
+MQTT_TOPIC_PREFIX = get_config_value("MQTT_TOPIC_PREFIX","mmbc/virtual")
 
-MQTT_HA_DISCOVERY = os.getenv("MQTT_HA_DISCOVERY", "true").lower() == "true"
-MQTT_USERNAME = os.getenv("MQTT_USERNAME")
-MQTT_PASSWORD = os.getenv("MQTT_PASSWORD")
+MQTT_HA_DISCOVERY = get_config_value("MQTT_HA_DISCOVERY", "true").lower() == "true"
+MQTT_USERNAME = get_config_value("MQTT_USERNAME")
+MQTT_PASSWORD = get_config_value("MQTT_PASSWORD")
 
 HA_DISCOVERY_PREFIX = "homeassistant"
 DEVICE_ID = "MMBC_Combined_Battery"
