@@ -25,8 +25,7 @@ class MqttPublisher:
         self.controller = controller
         self.batteries = batteries
         self.interval = interval
-        self.client = mqtt.Client()
-        self.client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD) if MQTT_USERNAME and MQTT_PASSWORD else None
+        self.client = mqtt.Client(client_id=f"mmbc-pub-{os.getpid()}")
 
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.running = False
