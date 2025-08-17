@@ -35,16 +35,16 @@ class MqttPublisher:
     def on_mqtt_message(self,client, userdata, msg):
         if msg.topic == "mmbc/control/batterymode":
             payload = msg.payload.decode().strip().lower()
-            if payload == "normal":
+            if payload == "normal" or payload == '1':
                 mode = 4  # Normal mode but I don't support it at the moment due the fact that we don't know if modbus writes to flash or not
-            elif payload == "hold":
+            elif payload == "hold" or payload == '2':
                 mode = 2  # Hold mode
-            elif payload == "charge":
+            elif payload == "charge" or payload == '3':
                 mode = 3  # Charge mode
             elif payload == "selfcontrol":
                 mode = 4
             else:
-                mode = 1  # Default to normal if invalid
+                mode = 4  # Default to normal if invalid
                 self.logger.warning(f"[MQTT] Invalid battery mode received: {payload}. Defaulting to 'normal'.")
                 payload = "normal"
             self.controller.set_battery_mode(mode)
