@@ -32,6 +32,13 @@ class MqttPublisher:
         self.running = False
         self.logger = get_logger('MqttPublisher')
 
+    MODE_LABELS = {1: "Normal", 2: "Hold", 3: "Charge", 4: "Selfcontrol"}
+
+    def _publish_initial_mode(self):
+        label = self.MODE_LABELS.get(self.controller.mode, "Selfcontrol")
+        self.client.publish("mmbc/status/batterymode", label, retain=True)
+        self.logger.info(f"[MQTT] Initial battery mode published: {label}")
+
     def on_mqtt_message(self,client, userdata, msg):
         if msg.topic == "mmbc/control/batterymode":
             payload = msg.payload.decode().strip().lower()
@@ -60,6 +67,7 @@ class MqttPublisher:
             if MQTT_HA_DISCOVERY:
                 self.publish_discovery_config()
             self.client.subscribe("mmbc/control/batterymode")
+            self._publish_initial_mode()
             self.running = True
             self.thread.start()
         except Exception as e:
