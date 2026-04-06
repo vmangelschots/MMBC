@@ -25,7 +25,7 @@ docker run --env-file .env --restart unless-stopped ghcr.io/vmangelschots/mmbc:l
 Make sure to configure your `.env` file with:
 
 ```env
-P1_API_URL=http://192.168.x.x/api/v1/data
+P1_HOST=http://192.168.x.x
 MQTT_HOST=192.168.x.x
 MQTT_PORT=1883
 MQTT_TOPIC_PREFIX=mmbc/virtual
@@ -70,11 +70,11 @@ This section describes all MQTT topics used by MMBC for integration with Home As
 | `mmbc/virtual/soc`                       | 🔼 Publish    | State of charge (%) for EVCC                                     | float (e.g. `64.2`)                      | Yes           |
 | `mmbc/virtual/power`                     | 🔼 Publish    | Battery power (W); positive = charging, negative = discharging   | integer (e.g. `-1200`)                   | Yes           |
 |                                          |               |                                                                  |                                          |               |
-| `mmbc/control/batterymode`              | 🔽 Subscribe  | Battery mode override (label format)                             | `"Normal"`, `"Hold"`, `"Charge"` | No            |
-| `mmbc/status/batterymode`               | 🔼 Publish    | Current battery mode (label format)                              | `"Normal"`, `"Hold"`, `"Charge"` | Yes           |
+| `mmbc/control/batterymode`              | 🔽 Subscribe  | Battery mode override (label format)                             | `"Normal"`, `"Hold"`, `"Charge"`, `"Selfcontrol"` | No  |
+| `mmbc/status/batterymode`               | 🔼 Publish    | Current battery mode (label format)                              | `"Normal"`, `"Hold"`, `"Charge"`, `"Selfcontrol"` | Yes |
 |                                          |               |                                                                  |                                          |               |
-| `mmbc/virtual/charge_total_wh`          | 🔼 Publish    | Total energy charged into the battery (Wh)                       | unsigned int                             | Yes           |
-| `mmbc/virtual/discharge_total_wh`       | 🔼 Publish    | Total energy discharged from the battery (Wh)                    | unsigned int                             | Yes           |
+| `mmbc/virtual/charged_energy`           | 🔼 Publish    | Total energy charged into the battery (kWh)                      | float (e.g. `123.456`)                   | No            |
+| `mmbc/virtual/discharged_energy`        | 🔼 Publish    | Total energy discharged from the battery (kWh)                   | float (e.g. `98.765`)                    | No            |
 
 
 You can easily ingest this into **Home Assistant**, **Node-RED**, or any MQTT-compatible dashboard.
@@ -84,9 +84,10 @@ You can easily ingest this into **Home Assistant**, **Node-RED**, or any MQTT-co
 
 The `batterymode` control and status topics use the following labels:
 
-- `"Normal"`: Battery can charge and discharge (default behavior)
-- `"Hold"`: Battery can charge, but discharging is disabled
-- `"Charge"`: Battery is forced to charge, regardless of grid import/export
+- `"Normal"`: Battery can charge and discharge based on grid power
+- `"Hold"`: Battery can charge from excess solar, but discharging is blocked
+- `"Charge"`: Battery is forced to charge at full power, regardless of grid import/export
+- `"Selfcontrol"`: MMBC releases Modbus control and lets the battery manage itself (default on startup)
 ---
 ## 🧰 Requirements
 
