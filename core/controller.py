@@ -63,7 +63,7 @@ class Controller:
             elif self.mode == BATTERY_HOLD:
 
                 if mode == CHARGING:
-                    self._idle_all(power)
+                    self._charge(power)
                 else:
                     self._idle_all()
             #the easiest case: Just charge all batteries
