@@ -36,15 +36,15 @@ class MqttPublisher:
         if msg.topic == "mmbc/control/batterymode":
             payload = msg.payload.decode().strip().lower()
             if payload == "normal" or payload == '1':
-                mode = 4  # Normal mode but I don't support it at the moment due the fact that we don't know if modbus writes to flash or not
+                mode = 1  #normal mode
             elif payload == "hold" or payload == '2':
                 mode = 2  # Hold mode
             elif payload == "charge" or payload == '3':
                 mode = 3  # Charge mode
-            elif payload == "selfcontrol":
-                mode = 4
+            elif payload == "selfcontrol" or payload == '4':
+                mode = 4 # self control
             else:
-                mode = 4  # Default to normal if invalid
+                mode = 1  # Default to normal if invalid
                 self.logger.warning(f"[MQTT] Invalid battery mode received: {payload}. Defaulting to 'normal'.")
                 payload = "normal"
             self.controller.set_battery_mode(mode)
@@ -161,7 +161,7 @@ class MqttPublisher:
             "unique_id": "mmbc_batterymode_select",
             "state_topic": "mmbc/status/batterymode",
             "command_topic": "mmbc/control/batterymode",
-            "options": ["Hold", "Charge", "Selfcontrol"],
+            "options": ["Normal", "Hold", "Charge", "Selfcontrol" ],
             "icon": "mdi:battery-settings",
             "device": {
                 "identifiers": [DEVICE_ID],

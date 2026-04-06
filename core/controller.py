@@ -90,11 +90,7 @@ class Controller:
 
         return min(candidates, key=lambda x: x[1])[0] if mode == CHARGING else max(candidates, key=lambda x: x[1])[0]
 
-    def _target_invalid(self, mode: str) -> bool:
-        if not self.active_target:
-            return True
-        soc = self.active_target.get_soc()
-        return (soc >= self.CHARGE_MAX_SOC if mode == CHARGING else soc <= self.DISCHARGE_MIN_SOC)
+ 
 
     def _idle_others(self, active: list[BatteryInterface]):
         for b in self.batteries:
@@ -106,7 +102,7 @@ class Controller:
             b.idle()
     def set_battery_mode(self,mode: int = BATTERY_NORMAL ):
         """Block or unblock discharge for all batteries."""
-        if mode is BATTERY_SELFCONTROL:
+        if mode == BATTERY_SELFCONTROL:
             for b in self.batteries:
                 b.release()
             self.logger.info("Self-control mode enabled. All batteries will control themselves.")
