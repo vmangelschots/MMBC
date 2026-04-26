@@ -29,6 +29,10 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Read version
+        id: version
+        run: echo "version=$(cat VERSION)" >> $GITHUB_OUTPUT
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -36,6 +40,8 @@ jobs:
           file: ./dockerfile
           push: true
           platforms: linux/amd64,linux/arm64, linux/arm/v7
-          tags: ghcr.io/vmangelschots/mmbc:latest
+          tags: |
+            ghcr.io/vmangelschots/mmbc:latest
+            ghcr.io/vmangelschots/mmbc:${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
