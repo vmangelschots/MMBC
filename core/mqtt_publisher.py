@@ -169,7 +169,7 @@ class MqttPublisher:
             "unique_id": "mmbc_batterymode_select",
             "state_topic": "mmbc/status/batterymode",
             "command_topic": "mmbc/control/batterymode",
-            "options": ["Normal", "Hold", "Charge", "Selfcontrol" ],
+            "options": ["Normal", "Hold", "Charge"] + (["Selfcontrol"] if self.controller.self_control_available else []),
             "icon": "mdi:battery-settings",
             "device": {
                 "identifiers": [DEVICE_ID],

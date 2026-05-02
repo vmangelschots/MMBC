@@ -62,7 +62,8 @@ if __name__ == "__main__":
     if battery_3_present:
         batteries.append(VenusBattery(ip=battery_3_ip, unit_id=battery_3_address, name="VenusBattery3",port=battery_3_port))
    
-    controller = Controller(meter=meter, batteries=batteries, interval_seconds=3)
+    self_control_available = get_config_value("SELF_CONTROL_AVAILABLE", "true").lower() == "true"
+    controller = Controller(meter=meter, batteries=batteries, interval_seconds=3, self_control_available=self_control_available)
     mqtt = MqttPublisher(controller,batteries=batteries, interval=3)
     mqtt.start()
     controller.run_forever()

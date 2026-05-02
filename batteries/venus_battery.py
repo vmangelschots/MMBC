@@ -62,7 +62,12 @@ class VenusBattery(BatteryInterface):
 
     def _write_if_changed(self, address: int, value: int) -> None:
         if self.last_written_values.get(address) != value:
-            result = self.client.write_register(address=address, value=value, device_id=self.unit_id)
+            try:
+                result = self.client.write_register(address=address, value=value, device_id=self.unit_id)
+            except Exception as e:
+                self.logger.error(f"[{self.name}] Exception writing {value} to register {address}: {e}")
+                self.connected = False
+                return
             if result.isError():
                 self.logger.warning(f"[{self.name}] Failed to write {value} to register {address}")
                 return

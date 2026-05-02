@@ -15,7 +15,7 @@ CHARGING = 1
 DISCHARGING = 2
 
 class Controller:
-    def __init__(self, meter: MeterInterface, batteries: list[BatteryInterface], interval_seconds: int = 5):
+    def __init__(self, meter: MeterInterface, batteries: list[BatteryInterface], interval_seconds: int = 5, initial_mode: int = BATTERY_NORMAL, self_control_available: bool = True):
         self.meter = meter
         self.batteries = batteries
         self.interval = interval_seconds
@@ -26,9 +26,10 @@ class Controller:
         self.DISCHARGE_MIN_SOC = 11
         self.CHARGE_LIMIT = 2500
         self.DISCHARGE_LIMIT = 2500
-        self.mode = BATTERY_SELFCONTROL  # Flag to block discharge if needed
+        self.self_control_available = self_control_available
+        self.mode = initial_mode
         self.logger = get_logger('Controller')
-        self.set_battery_mode(BATTERY_SELFCONTROL)  # Default to self-control mode
+        self.set_battery_mode(initial_mode)
 
     def run_forever(self):
         while True:
@@ -100,12 +101,15 @@ class Controller:
     def _idle_all(self):
         for b in self.batteries:
             b.idle()
-    def set_battery_mode(self,mode: int = BATTERY_NORMAL ):
-        """Block or unblock discharge for all batteries."""
+    def set_battery_mode(self, mode: int = BATTERY_NORMAL):
         if mode == BATTERY_SELFCONTROL:
-            for b in self.batteries:
-                b.release()
-            self.logger.info("Self-control mode enabled. All batteries will control themselves.")
+            if not self.self_control_available:
+                self.logger.warning("Self-control mode requested but not available. Falling back to Normal.")
+                mode = BATTERY_NORMAL
+            else:
+                for b in self.batteries:
+                    b.release()
+                self.logger.info("Self-control mode enabled. All batteries will control themselves.")
         else:
             for b in self.batteries:
                 b.aquire_control()
