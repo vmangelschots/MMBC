@@ -97,13 +97,27 @@ This section describes all MQTT topics used by MMBC for integration with Home As
 | **Topic**                                | **Direction** | **Description**                                                  | **Payload**                             | **Retained** |
 |------------------------------------------|---------------|------------------------------------------------------------------|------------------------------------------|---------------|
 | `mmbc/virtual/soc`                       | 🔼 Publish    | State of charge (%) for EVCC                                     | float (e.g. `64.2`)                      | Yes           |
-| `mmbc/virtual/power`                     | 🔼 Publish    | Battery power (W); positive = charging, negative = discharging   | integer (e.g. `-1200`)                   | Yes           |
+| `mmbc/virtual/power`                     | 🔼 Publish    | Measured battery power (W); positive = discharging, negative = charging | integer (e.g. `-1200`)             | Yes           |
+| `mmbc/virtual/state`                     | 🔼 Publish    | Measured battery state                                           | `"charging"`, `"discharging"`, `"idle"`  | Yes           |
 |                                          |               |                                                                  |                                          |               |
-| `mmbc/control/batterymode`              | 🔽 Subscribe  | Battery mode override (label format)                             | `"Normal"`, `"Hold"`, `"Charge"`, `"Selfcontrol"` | No  |
-| `mmbc/status/batterymode`               | 🔼 Publish    | Current battery mode (label format)                              | `"Normal"`, `"Hold"`, `"Charge"`, `"Selfcontrol"` | Yes |
+| `mmbc/control/batterymode`              | 🔽 Subscribe  | Battery mode override (label or number)                          | `"Normal"`, `"Hold"`, `"Charge"`, `"Selfcontrol"`, `"Evcc"` | No  |
+| `mmbc/status/batterymode`               | 🔼 Publish    | Battery mode MMBC actually runs (label format)                   | `"Normal"`, `"Hold"`, `"Charge"`, `"Selfcontrol"`, `"Evcc"` | Yes |
 |                                          |               |                                                                  |                                          |               |
 | `mmbc/virtual/charged_energy`           | 🔼 Publish    | Total energy charged into the battery (kWh)                      | float (e.g. `123.456`)                   | No            |
 | `mmbc/virtual/discharged_energy`        | 🔼 Publish    | Total energy discharged from the battery (kWh)                   | float (e.g. `98.765`)                    | No            |
+|                                          |               |                                                                  |                                          |               |
+| `mmbc/virtual/target_action`            | 🔼 Publish    | What MMBC last told the batteries to do                          | `"charge"`, `"discharge"`, `"idle"`, `"selfcontrol"` | No |
+| `mmbc/virtual/target_power`             | 🔼 Publish    | Total target power (W), same sign convention as `power`          | integer (e.g. `-3200`)                   | No            |
+|                                          |               |                                                                  |                                          |               |
+| `mmbc/virtual/evcc/action`              | 🔼 Publish    | Action EVCC suggests                                             | `"charge"`, `"hold"`, `"discharge"`, `"unavailable"` | No |
+| `mmbc/virtual/evcc/charge`              | 🔼 Publish    | Charge power EVCC suggests (W)                                   | integer (e.g. `3200`)                    | No            |
+| `mmbc/virtual/evcc/discharge`           | 🔼 Publish    | Discharge power EVCC suggests (W)                                | integer (e.g. `1416`)                    | No            |
+| `mmbc/virtual/evcc/actionable`          | 🔼 Publish    | Whether EVCC marked the suggestion as actionable                 | `"ON"` / `"OFF"`                         | No            |
+| `mmbc/virtual/evcc/following`           | 🔼 Publish    | Whether MMBC is currently acting on the suggestion               | `"ON"` / `"OFF"`                         | No            |
+
+The `evcc/*` topics are only published when `EVCC_HOST` is configured. They are published in **every** mode, so you can watch what the optimizer would do before switching to Evcc mode — `following` tells you whether MMBC is actually acting on it.
+
+Comparing `target_power` (what MMBC asked for) with `power` (what the batteries report) makes it easy to spot a battery that is not keeping up with its setpoint.
 
 
 You can easily ingest this into **Home Assistant**, **Node-RED**, or any MQTT-compatible dashboard.

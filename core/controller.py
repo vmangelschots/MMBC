@@ -37,6 +37,9 @@ class Controller:
         self.self_control_available = self_control_available
         self.optimizer = optimizer
         self.last_evcc_action = None
+        # what the controller last told the batteries to do, for reporting over MQTT
+        self.last_action = "idle"
+        self.last_action_power = 0  # total target power in watts, always positive
         self.mode = initial_mode
         self.logger = get_logger('Controller')
         if self.grid_max_import is not None:
@@ -75,7 +78,8 @@ class Controller:
             elif self.mode == BATTERY_EVCC:
                 self._run_evcc(adjusted_power, power, flow)
             elif self.mode == BATTERY_SELFCONTROL:
-                pass # do nothing, let the batteries control themselves
+                # do nothing, let the batteries control themselves
+                self._record_action("selfcontrol", 0)
             time.sleep(self.interval)
 
     def _in_deadband(self, adjusted_power: int) -> bool:
@@ -181,8 +185,14 @@ class Controller:
                 b.idle()
 
     def _idle_all(self):
+        self._record_action("idle", 0)
         for b in self.batteries:
             b.idle()
+
+    def _record_action(self, action: str, power: int):
+        """Remember the last decision so it can be published over MQTT."""
+        self.last_action = action
+        self.last_action_power = power
     @property
     def evcc_available(self) -> bool:
         return self.optimizer is not None
@@ -270,6 +280,7 @@ class Controller:
         if headroom is not None and power_per_battery < self.CHARGE_LIMIT:
             self.logger.info(f"Grid import limit {self.grid_max_import}W: house is using {house_power}W, charging {len(self.batteries)} batteries at {power_per_battery}W each")
 
+        self._record_action("charge", power_per_battery * len(self.batteries))
         for b in self.batteries:
             b.charge(power_per_battery)
 
@@ -293,6 +304,7 @@ class Controller:
 
         self.logger.debug(f"Charging {number_of_batteries_to_charge} batteries with {power_per_battery}W for a total of {power}W")
 
+        self._record_action("charge", power_per_battery * number_of_batteries_to_charge)
         for i in range(number_of_batteries_to_charge):
             battery = target_batteries[i]
             battery.charge(power_per_battery)
@@ -318,6 +330,7 @@ class Controller:
 
         self.logger.debug(f"Discharging {number_of_batteries_to_discharge} batteries with {power_per_battery}W for a total of {power}W")
 
+        self._record_action("discharge", power_per_battery * number_of_batteries_to_discharge)
         for i in range(number_of_batteries_to_discharge):
             battery = target_batteries[i]
             battery.discharge(power_per_battery)

@@ -2,6 +2,7 @@ import time
 import threading
 import paho.mqtt.client as mqtt
 from core.config_loader import get_config_value
+from core.controller import BATTERY_EVCC
 import os
 import json
 from dotenv import load_dotenv
@@ -20,6 +21,8 @@ MQTT_PASSWORD = get_config_value("MQTT_PASSWORD")
 HA_DISCOVERY_PREFIX = "homeassistant"
 DEVICE_ID = "MMBC_Combined_Battery"
 DEVICE_NAME = "MMBC Combined Battery"
+EVCC_DEVICE_ID = "MMBC_EVCC"
+EVCC_DEVICE_NAME = "MMBC EVCC Optimizer"
 
 class MqttPublisher:
     def __init__(self,controller, batteries, interval=10):
@@ -95,7 +98,22 @@ class MqttPublisher:
                 "name": "State",
                 "key": "state",
                 "unit": "",
-                "device_class": None
+                "device_class": None,
+                "combined_only": True
+            },
+            {
+                "name": "Target Action",
+                "key": "target_action",
+                "unit": "",
+                "device_class": None,
+                "combined_only": True
+            },
+            {
+                "name": "Target Power",
+                "key": "target_power",
+                "unit": "W",
+                "device_class": "power",
+                "combined_only": True
             },
             {
                 "name": "Charged Energy",
@@ -140,8 +158,8 @@ class MqttPublisher:
             device_id = f"MMBC_Battery_{index}"
             device_name = f"MMBC Battery {index} ({battery.name})"
             for sensor in sensors:
-                if sensor["key"] == "state":
-                    continue  # skip per-battery state
+                if sensor.get("combined_only"):
+                    continue  # these only exist for the combined battery
 
                 topic = f"{HA_DISCOVERY_PREFIX}/sensor/{device_id}_{sensor['key']}/config"
                 payload = {
@@ -185,6 +203,91 @@ class MqttPublisher:
             json.dumps(switch_payload),
             retain=True
         )
+
+        self.publish_evcc_discovery_config()
+
+    def publish_evcc_discovery_config(self):
+        """Discovery configs for what the EVCC optimizer is asking for."""
+        if not self.controller.evcc_available:
+            return
+
+        device = {
+            "identifiers": [EVCC_DEVICE_ID],
+            "name": EVCC_DEVICE_NAME,
+            "manufacturer": "MMBC",
+            "model": "EvccOptimizer"
+        }
+
+        sensors = [
+            {"name": "Suggested Action", "key": "action", "unit": "", "device_class": None},
+            {"name": "Suggested Charge", "key": "charge", "unit": "W", "device_class": "power"},
+            {"name": "Suggested Discharge", "key": "discharge", "unit": "W", "device_class": "power"},
+        ]
+        for sensor in sensors:
+            payload = {
+                "name": sensor["name"],
+                "state_topic": f"{MQTT_TOPIC_PREFIX}/evcc/{sensor['key']}",
+                "unique_id": f"{EVCC_DEVICE_ID}_{sensor['key']}",
+                "device": device
+            }
+            if sensor["unit"]:
+                payload["unit_of_measurement"] = sensor["unit"]
+            if sensor["device_class"]:
+                payload["device_class"] = sensor["device_class"]
+                payload["state_class"] = "measurement"
+
+            self.client.publish(
+                f"{HA_DISCOVERY_PREFIX}/sensor/{EVCC_DEVICE_ID}_{sensor['key']}/config",
+                json.dumps(payload),
+                retain=True
+            )
+
+        binary_sensors = [
+            {"name": "Actionable", "key": "actionable", "icon": "mdi:check-decagram"},
+            {"name": "Following", "key": "following", "icon": "mdi:link-variant"},
+        ]
+        for sensor in binary_sensors:
+            payload = {
+                "name": sensor["name"],
+                "state_topic": f"{MQTT_TOPIC_PREFIX}/evcc/{sensor['key']}",
+                "unique_id": f"{EVCC_DEVICE_ID}_{sensor['key']}",
+                "payload_on": "ON",
+                "payload_off": "OFF",
+                "icon": sensor["icon"],
+                "device": device
+            }
+            self.client.publish(
+                f"{HA_DISCOVERY_PREFIX}/binary_sensor/{EVCC_DEVICE_ID}_{sensor['key']}/config",
+                json.dumps(payload),
+                retain=True
+            )
+
+    def _publish_evcc_state(self):
+        """Publish what EVCC asks for, and whether MMBC is acting on it.
+
+        The suggestion is published whenever an EVCC host is configured, also outside
+        Evcc mode, so you can watch what the optimizer would do before switching to it.
+        """
+        if not self.controller.evcc_available:
+            return
+
+        prefix = f"{MQTT_TOPIC_PREFIX}/evcc"
+        suggestion = self.controller.optimizer.get_suggestion()
+
+        if suggestion is None:
+            self.client.publish(f"{prefix}/action", "unavailable")
+            self.client.publish(f"{prefix}/charge", 0)
+            self.client.publish(f"{prefix}/discharge", 0)
+            self.client.publish(f"{prefix}/actionable", "OFF")
+            self.client.publish(f"{prefix}/following", "OFF")
+            return
+
+        following = self.controller.mode == BATTERY_EVCC and suggestion.actionable
+        self.client.publish(f"{prefix}/action", suggestion.action)
+        self.client.publish(f"{prefix}/charge", suggestion.charge)
+        self.client.publish(f"{prefix}/discharge", suggestion.discharge)
+        self.client.publish(f"{prefix}/actionable", "ON" if suggestion.actionable else "OFF")
+        self.client.publish(f"{prefix}/following", "ON" if following else "OFF")
     def _run(self):
         while self.running:
             try:
@@ -218,11 +321,23 @@ class MqttPublisher:
                 elif total_power < -100:
                     state = "charging"
 
+                # What the controller last asked for, using the same sign convention
+                # as `power`: positive = discharging, negative = charging.
+                target_action = self.controller.last_action
+                target_power = self.controller.last_action_power
+                if target_action == "charge":
+                    target_power = -target_power
+                elif target_action != "discharge":
+                    target_power = 0
+
                 self.client.publish(f"{MQTT_TOPIC_PREFIX}/soc", avg_soc)
                 self.client.publish(f"{MQTT_TOPIC_PREFIX}/power", total_power)
                 self.client.publish(f"{MQTT_TOPIC_PREFIX}/state", state)
                 self.client.publish(f"{MQTT_TOPIC_PREFIX}/charged_energy", round(total_charged, 3))
                 self.client.publish(f"{MQTT_TOPIC_PREFIX}/discharged_energy", round(total_discharged, 3))
+                self.client.publish(f"{MQTT_TOPIC_PREFIX}/target_action", target_action)
+                self.client.publish(f"{MQTT_TOPIC_PREFIX}/target_power", target_power)
+                self._publish_evcc_state()
 
             except Exception as e:
                 print(f"[MQTT] Error during publish: {e}")
