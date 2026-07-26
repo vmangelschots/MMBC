@@ -1,6 +1,7 @@
 import time
 from interfaces.meter_interface import MeterInterface
 from interfaces.battery_interface import BatteryInterface
+from interfaces.optimizer_interface import OptimizerInterface
 from utils.logger import get_logger
 
 
@@ -11,11 +12,16 @@ BATTERY_NORMAL = 1
 BATTERY_HOLD = 2
 BATTERY_CHARGE = 3
 BATTERY_SELFCONTROL = 4
+BATTERY_EVCC = 5
 CHARGING = 1
 DISCHARGING = 2
 
+EVCC_CHARGE = "charge"
+EVCC_DISCHARGE = "discharge"
+EVCC_HOLD = "hold"
+
 class Controller:
-    def __init__(self, meter: MeterInterface, batteries: list[BatteryInterface], interval_seconds: int = 5, initial_mode: int = BATTERY_NORMAL, self_control_available: bool = True, grid_max_import: int | None = None):
+    def __init__(self, meter: MeterInterface, batteries: list[BatteryInterface], interval_seconds: int = 5, initial_mode: int = BATTERY_NORMAL, self_control_available: bool = True, grid_max_import: int | None = None, optimizer: OptimizerInterface | None = None):
         self.meter = meter
         self.batteries = batteries
         self.interval = interval_seconds
@@ -26,8 +32,11 @@ class Controller:
         self.DISCHARGE_MIN_SOC = 11
         self.CHARGE_LIMIT = 2500
         self.DISCHARGE_LIMIT = 2500
+        self.DEADBAND = 30  # ignore grid imbalances smaller than this
         self.grid_max_import = grid_max_import  # capacity tariff cap in watts, None = no limit
         self.self_control_available = self_control_available
+        self.optimizer = optimizer
+        self.last_evcc_action = None
         self.mode = initial_mode
         self.logger = get_logger('Controller')
         if self.grid_max_import is not None:
@@ -53,33 +62,101 @@ class Controller:
             for b in self.batteries:
                 self.logger.info(f" {b.name}: {b.get_soc()}% @ {b.get_current_wattage()}W")
 
-            # if adjusted_power is between -30 and + 30 watt, idle all batteries
-            if adjusted_power >= -30 and adjusted_power <= 30:
-                self._idle_all()
-                time.sleep(self.interval)
-                continue
-
-            mode = DISCHARGING if adjusted_power > 0 else CHARGING
-
+            flow = DISCHARGING if adjusted_power > 0 else CHARGING
             power = abs(adjusted_power)
+
             if self.mode == BATTERY_NORMAL:
-                if mode == CHARGING:
-                    self._charge(self._cap_charge_power(power, adjusted_power))
-                else:
-                    self._discharge(power)
+                self._run_normal(adjusted_power, power, flow)
             elif self.mode == BATTERY_HOLD:
-
-                if mode == CHARGING:
-                    self._charge(self._cap_charge_power(power, adjusted_power))
-                else:
-                    self._idle_all()
+                self._run_hold(adjusted_power, power, flow)
             #the easiest case: Just charge all batteries
-
             elif self.mode == BATTERY_CHARGE:
                 self._charge_all(adjusted_power)
+            elif self.mode == BATTERY_EVCC:
+                self._run_evcc(adjusted_power, power, flow)
             elif self.mode == BATTERY_SELFCONTROL:
                 pass # do nothing, let the batteries control themselves
             time.sleep(self.interval)
+
+    def _in_deadband(self, adjusted_power: int) -> bool:
+        """True when the grid is close enough to zero that acting on it is not worth it."""
+        return -self.DEADBAND <= adjusted_power <= self.DEADBAND
+
+    def _run_normal(self, adjusted_power: int, power: int, flow: int, max_discharge: int | None = None):
+        """Follow the grid: charge from surplus, discharge to cover consumption."""
+        if self._in_deadband(adjusted_power):
+            self._idle_all()
+            return
+
+        if flow == CHARGING:
+            self._charge(self._cap_charge_power(power, adjusted_power))
+        else:
+            if max_discharge is not None and power > max_discharge:
+                self.logger.debug(f"Limiting discharge from {power}W to {max_discharge}W")
+                power = max_discharge
+            self._discharge(power)
+
+    def _run_hold(self, adjusted_power: int, power: int, flow: int):
+        """Charge from surplus, but never discharge."""
+        if self._in_deadband(adjusted_power):
+            self._idle_all()
+            return
+
+        if flow == CHARGING:
+            self._charge(self._cap_charge_power(power, adjusted_power))
+        else:
+            self._idle_all()
+
+    def _run_evcc(self, adjusted_power: int, power: int, flow: int):
+        """Follow the suggestion of the EVCC optimizer.
+
+        Falls back to normal self-consumption whenever no usable suggestion is
+        available, so an EVCC outage never leaves the batteries stranded.
+        """
+        suggestion = self.optimizer.get_suggestion() if self.optimizer else None
+
+        if suggestion is None:
+            self._log_evcc_action(None)
+            self._run_normal(adjusted_power, power, flow)
+            return
+
+        self._log_evcc_action(suggestion)
+
+        if not suggestion.actionable:
+            self._run_normal(adjusted_power, power, flow)
+            return
+
+        if suggestion.action == EVCC_CHARGE and suggestion.charge > 0:
+            # Charge at the suggested power, but never below the solar surplus we
+            # already have: free energy beats the optimizer's grid charge target.
+            surplus = power if flow == CHARGING else 0
+            target = max(suggestion.charge, surplus)
+            self._charge(self._cap_charge_power(target, adjusted_power))
+        elif suggestion.action == EVCC_HOLD:
+            # Hold means do not discharge. A solar surplus is still used to charge.
+            self._run_hold(adjusted_power, power, flow)
+        elif suggestion.action == EVCC_DISCHARGE:
+            # Cover the house load, capped at what the optimizer asked for. Never
+            # discharge into the grid.
+            self._run_normal(adjusted_power, power, flow, max_discharge=suggestion.discharge or None)
+        else:
+            self._run_normal(adjusted_power, power, flow)
+
+    def _log_evcc_action(self, suggestion):
+        """Log the EVCC suggestion once, whenever it changes."""
+        action = suggestion.action if suggestion else None
+        if action == self.last_evcc_action:
+            return
+        self.last_evcc_action = action
+
+        if suggestion is None:
+            self.logger.warning("No usable EVCC suggestion, falling back to normal mode")
+        elif not suggestion.actionable:
+            self.logger.info(f"EVCC suggests '{suggestion.action}' but marked it not actionable, falling back to normal mode")
+        elif suggestion.action in (EVCC_CHARGE, EVCC_DISCHARGE, EVCC_HOLD):
+            self.logger.info(f"EVCC suggests '{suggestion.action}' (charge {suggestion.charge}W, discharge {suggestion.discharge}W)")
+        else:
+            self.logger.info(f"EVCC suggests '{suggestion.action}', treating it as normal mode")
 
 
     def _select_target(self, mode: str) -> BatteryInterface | None:
@@ -106,7 +183,18 @@ class Controller:
     def _idle_all(self):
         for b in self.batteries:
             b.idle()
+    @property
+    def evcc_available(self) -> bool:
+        return self.optimizer is not None
+
     def set_battery_mode(self, mode: int = BATTERY_NORMAL):
+        if mode == BATTERY_EVCC and not self.evcc_available:
+            self.logger.warning("EVCC mode requested but no EVCC optimizer is configured. Falling back to Normal.")
+            mode = BATTERY_NORMAL
+
+        if mode == BATTERY_EVCC:
+            self.last_evcc_action = None  # log the first suggestion after every switch
+
         if mode == BATTERY_SELFCONTROL:
             if not self.self_control_available:
                 self.logger.warning("Self-control mode requested but not available. Falling back to Normal.")
@@ -211,6 +299,10 @@ class Controller:
         self._idle_others(target_batteries[:number_of_batteries_to_charge])
         
     def _discharge(self,power: int):
+        if power <= 0:
+            self.logger.debug("No discharge power requested")
+            self._idle_all()
+            return
         # get the list of batteries to charge based on priority
         target_batteries = self._get_batteries_priority_list(DISCHARGING)
         #calculate how many batteries can be charged with the given power

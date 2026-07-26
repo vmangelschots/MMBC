@@ -32,7 +32,8 @@ class MqttPublisher:
         self.running = False
         self.logger = get_logger('MqttPublisher')
 
-    MODE_LABELS = {1: "Normal", 2: "Hold", 3: "Charge", 4: "Selfcontrol"}
+    MODE_LABELS = {1: "Normal", 2: "Hold", 3: "Charge", 4: "Selfcontrol", 5: "Evcc"}
+    MODE_VALUES = {label.lower(): value for value, label in MODE_LABELS.items()}
 
     def _publish_initial_mode(self):
         label = self.MODE_LABELS.get(self.controller.mode, "Selfcontrol")
@@ -42,21 +43,20 @@ class MqttPublisher:
     def on_mqtt_message(self,client, userdata, msg):
         if msg.topic == "mmbc/control/batterymode":
             payload = msg.payload.decode().strip().lower()
-            if payload == "normal" or payload == '1':
-                mode = 1  #normal mode
-            elif payload == "hold" or payload == '2':
-                mode = 2  # Hold mode
-            elif payload == "charge" or payload == '3':
-                mode = 3  # Charge mode
-            elif payload == "selfcontrol" or payload == '4':
-                mode = 4 # self control
+            if payload in self.MODE_VALUES:
+                mode = self.MODE_VALUES[payload]
+            elif payload.isdigit() and int(payload) in self.MODE_LABELS:
+                mode = int(payload)
             else:
                 mode = 1  # Default to normal if invalid
                 self.logger.warning(f"[MQTT] Invalid battery mode received: {payload}. Defaulting to 'normal'.")
-                payload = "normal"
+
             self.controller.set_battery_mode(mode)
-            self.client.publish("mmbc/status/batterymode", str(payload).capitalize(), retain=True)
-            self.logger.info(f"[MQTT] Batterymode set to: {payload}")
+            # The controller can refuse a mode (e.g. selfcontrol or evcc when unavailable),
+            # so report back what it actually runs instead of what was requested.
+            label = self.MODE_LABELS.get(self.controller.mode, "Normal")
+            self.client.publish("mmbc/status/batterymode", label, retain=True)
+            self.logger.info(f"[MQTT] Batterymode set to: {label}")
     def start(self):
         try:
             if MQTT_USERNAME and MQTT_PASSWORD:
@@ -169,7 +169,9 @@ class MqttPublisher:
             "unique_id": "mmbc_batterymode_select",
             "state_topic": "mmbc/status/batterymode",
             "command_topic": "mmbc/control/batterymode",
-            "options": ["Normal", "Hold", "Charge"] + (["Selfcontrol"] if self.controller.self_control_available else []),
+            "options": ["Normal", "Hold", "Charge"]
+                       + (["Selfcontrol"] if self.controller.self_control_available else [])
+                       + (["Evcc"] if self.controller.evcc_available else []),
             "icon": "mdi:battery-settings",
             "device": {
                 "identifiers": [DEVICE_ID],

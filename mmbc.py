@@ -3,6 +3,7 @@ import sys
 from core.controller import Controller
 from meters.homewizard_p1_meter import HomeWizardP1Meter
 from batteries.venus_battery import VenusBattery
+from optimizers.evcc_optimizer import EvccOptimizer
 from core.mqtt_publisher import MqttPublisher
 import os
 from dotenv import load_dotenv
@@ -83,7 +84,19 @@ if __name__ == "__main__":
             else:
                 logger.info(f"Grid import limited to {grid_max_import}W. Charging will be throttled to stay below it.")
 
-    controller = Controller(meter=meter, batteries=batteries, interval_seconds=3, self_control_available=self_control_available, grid_max_import=grid_max_import)
+    # Optional EVCC optimizer: enables the Evcc battery mode, which follows the
+    # suggestions of EVCC's experimental optimizer. Not set = mode unavailable.
+    evcc_host = get_config_value("EVCC_HOST")
+    optimizer = None
+    if evcc_host:
+        evcc_battery = get_config_value("EVCC_BATTERY_NAME") or None
+        evcc_poll_interval = int(get_config_value("EVCC_POLL_SECONDS", 30))
+        optimizer = EvccOptimizer(host=evcc_host, battery_name=evcc_battery, poll_interval=evcc_poll_interval)
+        logger.info(f"EVCC optimizer enabled at {evcc_host} (battery: {evcc_battery or 'first controllable'}, polled every {evcc_poll_interval}s).")
+    else:
+        logger.info("EVCC_HOST not set. Evcc mode is not available.")
+
+    controller = Controller(meter=meter, batteries=batteries, interval_seconds=3, self_control_available=self_control_available, grid_max_import=grid_max_import, optimizer=optimizer)
     mqtt = MqttPublisher(controller,batteries=batteries, interval=3)
     mqtt.start()
     controller.run_forever()

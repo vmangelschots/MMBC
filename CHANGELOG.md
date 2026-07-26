@@ -4,8 +4,11 @@
 
 ### Added
 - **Grid import limit** (`GRID_MAX_IMPORT_WATTS`, optional): caps total charge power so house consumption plus battery charging stays below the configured number of watts. Aimed at the Belgian capacity tariff. Unset means no limit, which is the previous behaviour.
+- **Evcc mode** (numeric `5`, MQTT label `"Evcc"`): follows the battery suggestions of EVCC's experimental optimizer, read from `<EVCC_HOST>/api/state`. Configured with `EVCC_HOST`, `EVCC_BATTERY_NAME` and `EVCC_POLL_SECONDS`. A `hold` suggestion still charges from solar surplus, `charge` charges at the suggested power (never below the available surplus), and `discharge` covers house consumption capped at the suggested power without exporting. Falls back to Normal whenever no usable suggestion is available. The mode is only offered when `EVCC_HOST` is set.
 
 ### Fixed
+- **Charge mode** no longer idles when the grid happens to be balanced (within ±30W); it now charges regardless of grid flow as documented
+- MMBC now reports the battery mode it actually runs over MQTT instead of the one that was requested, so a mode the controller refuses no longer shows up as active
 - `_write_if_changed` no longer caches a register value when the Modbus write fails — failed writes are retried on the next cycle
 - `set_battery_mode` now uses `==` instead of `is` for integer comparison
 

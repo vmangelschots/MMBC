@@ -117,6 +117,43 @@ The `batterymode` control and status topics use the following labels:
 - `"Hold"`: Battery can charge from excess solar, but discharging is blocked
 - `"Charge"`: Battery is forced to charge at full power, regardless of grid import/export
 - `"Selfcontrol"`: MMBC releases Modbus control and lets the battery manage itself (default on startup)
+- `"Evcc"`: MMBC follows the suggestions of the EVCC optimizer (only offered when `EVCC_HOST` is set)
+
+---
+
+## 🔌 EVCC Mode
+
+[EVCC](https://evcc.io) has an experimental optimizer that plans battery charging and discharging against dynamic energy prices and a solar forecast. MMBC can follow those plans.
+
+```env
+EVCC_HOST=http://192.168.1.60:7070
+EVCC_BATTERY_NAME=db:14      # optional, defaults to the first controllable battery
+EVCC_POLL_SECONDS=30         # optional
+```
+
+MMBC reads `<EVCC_HOST>/api/state` and picks up the `suggestion` of your battery device:
+
+```json
+{"name": "db:14", "title": "Combined Marstek", "controllable": true,
+ "suggestion": {"action": "hold", "charge": 0, "discharge": 0, "actionable": true}}
+```
+
+`EVCC_BATTERY_NAME` matches either the `name` (`db:14`) or the `title` (`Combined Marstek`).
+
+| Suggestion  | What MMBC does |
+|-------------|----------------|
+| `charge`    | Charges at the suggested power, from the grid if needed — but never below the solar surplus that is already available |
+| `hold`      | Never discharges, **but a solar surplus is still used to charge** |
+| `discharge` | Covers house consumption up to the suggested power. Never discharges into the grid |
+| anything else, `actionable: false`, or no answer from EVCC | Behaves like **Normal** mode |
+
+Notes:
+
+- The optimizer plans in 15-minute slots, so the state is fetched every 30 s by default and reused in between.
+- If EVCC becomes unreachable the last suggestion is kept for 10 minutes, after which MMBC falls back to Normal mode. It never leaves the batteries stranded on stale advice.
+- `GRID_MAX_IMPORT_WATTS` still applies: a `charge` suggestion is throttled to stay under your capacity tariff limit.
+- Requires EVCC's experimental optimizer (`experimental: true`) to be enabled — without it there is no `suggestion` field and MMBC logs a warning.
+
 ---
 ## 🧰 Requirements
 
