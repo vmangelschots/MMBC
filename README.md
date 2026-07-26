@@ -61,6 +61,35 @@ BATTERY_2_ADDRESS=1
 
 ---
 
+## ⚡ Grid Import Limit (Capacity Tariff)
+
+Belgian households pay a grid fee based on the **highest 15-minute average import** of the month (*capaciteitstarief*). Charging a battery from the grid can easily push that peak up.
+
+Set the optional `GRID_MAX_IMPORT_WATTS` to keep MMBC below your target:
+
+```env
+GRID_MAX_IMPORT_WATTS=8000
+```
+
+MMBC then measures what the house is consuming **excluding the batteries** and only charges with the power that is left over:
+
+| House consumption | Limit  | Battery charge power | Grid import |
+|-------------------|--------|----------------------|-------------|
+| 5000 W            | 8000 W | 3000 W               | 8000 W      |
+| 1000 W            | 8000 W | 5000 W (2 batteries at max) | 6000 W |
+| 8500 W            | 8000 W | 0 W (batteries idle) | 8500 W      |
+| −2000 W (solar surplus) | 8000 W | 5000 W         | 3000 W      |
+
+Notes:
+
+- Leave it **unset for no limit** — that is the previous behaviour.
+- The limit is checked every cycle (3 s) against the **instantaneous** import, which is stricter than the 15-minute average the grid operator actually bills. Same approach as EVCC.
+- It mainly affects **Charge** mode, where the batteries are force-charged from the grid. In Normal and Hold mode charging only happens from surplus, which never increases grid import.
+- The available power is spread **evenly across all batteries**, capped at 2500 W each.
+- Requires `P1_HOST`. Without a meter the house consumption is unknown, so only the total battery charge power is capped at the limit.
+
+---
+
 ## 🌐 MQTT Integration
 
 This section describes all MQTT topics used by MMBC for integration with Home Assistant, EVCC, and external systems.

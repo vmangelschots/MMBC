@@ -30,7 +30,7 @@ There are no automated tests in this project.
 Config is loaded by `core/config_loader.py`, which first checks `/data/options.json` (Home Assistant add-on format) then falls back to environment variables. See `.env.example` for all available keys.
 
 Required env vars: `BATTERY_1_IP`, `BATTERY_1_ADDRESS`  
-Optional: `BATTERY_2_*`, `BATTERY_3_*`, `P1_HOST`, `MQTT_*`
+Optional: `BATTERY_2_*`, `BATTERY_3_*`, `P1_HOST`, `MQTT_*`, `SELF_CONTROL_AVAILABLE`, `GRID_MAX_IMPORT_WATTS`
 
 ## Architecture
 
@@ -48,6 +48,7 @@ The system has three layers connected through abstract interfaces:
 
 **Core**
 - `core/controller.py` — main control loop (3s interval). Reads meter power, adds current battery output to get `adjusted_power`, then decides charge/discharge/idle. Modes: `BATTERY_NORMAL` (1), `BATTERY_HOLD` (2), `BATTERY_CHARGE` (3), `BATTERY_SELFCONTROL` (4, default). Battery priority list is cached for 5 minutes and invalidated early if a selected battery becomes ineligible (SoC limits: discharge min 11%, charge max 100%). Power above 2500W splits across multiple batteries.
+- **Grid import limit** (optional, `GRID_MAX_IMPORT_WATTS`): `_charge_headroom()` returns how much charge power still fits under the limit given the house consumption (`adjusted_power`, which already excludes battery power). `_cap_charge_power()` applies it on the NORMAL/HOLD charge paths (where it never binds, since those only charge from surplus) and `_charge_all()` applies it in BATTERY_CHARGE mode, splitting the headroom evenly across all batteries. `None` means no limit. Without a meter the house consumption is unknown, so the headroom is just the limit itself.
 - `core/mqtt_publisher.py` — runs in a daemon thread, publishes aggregated and per-battery metrics every 3s, subscribes to `mmbc/control/batterymode` for mode changes, and publishes Home Assistant MQTT discovery configs on startup.
 - `core/config_loader.py` — config resolution (options.json → env)
 

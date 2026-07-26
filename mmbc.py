@@ -63,7 +63,27 @@ if __name__ == "__main__":
         batteries.append(VenusBattery(ip=battery_3_ip, unit_id=battery_3_address, name="VenusBattery3",port=battery_3_port))
    
     self_control_available = get_config_value("SELF_CONTROL_AVAILABLE", "true").lower() == "true"
-    controller = Controller(meter=meter, batteries=batteries, interval_seconds=3, self_control_available=self_control_available)
+
+    # Optional capacity tariff cap: never import more than this many watts from the grid.
+    # Not set (or empty) means no limit.
+    grid_max_import = get_config_value("GRID_MAX_IMPORT_WATTS")
+    if grid_max_import is None or str(grid_max_import).strip() == "":
+        grid_max_import = None
+        logger.info("GRID_MAX_IMPORT_WATTS not set. Charging is not limited by grid import.")
+    else:
+        try:
+            grid_max_import = int(grid_max_import)
+        except (TypeError, ValueError):
+            logger.error(f"GRID_MAX_IMPORT_WATTS is not a number: {grid_max_import!r}. Ignoring it, charging will not be limited.")
+            grid_max_import = None
+        else:
+            if grid_max_import <= 0:
+                logger.error(f"GRID_MAX_IMPORT_WATTS must be a positive number of watts, got {grid_max_import}. Ignoring it, charging will not be limited.")
+                grid_max_import = None
+            else:
+                logger.info(f"Grid import limited to {grid_max_import}W. Charging will be throttled to stay below it.")
+
+    controller = Controller(meter=meter, batteries=batteries, interval_seconds=3, self_control_available=self_control_available, grid_max_import=grid_max_import)
     mqtt = MqttPublisher(controller,batteries=batteries, interval=3)
     mqtt.start()
     controller.run_forever()

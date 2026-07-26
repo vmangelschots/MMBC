@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+### Added
+- **Grid import limit** (`GRID_MAX_IMPORT_WATTS`, optional): caps total charge power so house consumption plus battery charging stays below the configured number of watts. Aimed at the Belgian capacity tariff. Unset means no limit, which is the previous behaviour.
+
 ### Fixed
 - `_write_if_changed` no longer caches a register value when the Modbus write fails — failed writes are retried on the next cycle
 - `set_battery_mode` now uses `==` instead of `is` for integer comparison

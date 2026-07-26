@@ -15,7 +15,7 @@ CHARGING = 1
 DISCHARGING = 2
 
 class Controller:
-    def __init__(self, meter: MeterInterface, batteries: list[BatteryInterface], interval_seconds: int = 5, initial_mode: int = BATTERY_NORMAL, self_control_available: bool = True):
+    def __init__(self, meter: MeterInterface, batteries: list[BatteryInterface], interval_seconds: int = 5, initial_mode: int = BATTERY_NORMAL, self_control_available: bool = True, grid_max_import: int | None = None):
         self.meter = meter
         self.batteries = batteries
         self.interval = interval_seconds
@@ -26,9 +26,15 @@ class Controller:
         self.DISCHARGE_MIN_SOC = 11
         self.CHARGE_LIMIT = 2500
         self.DISCHARGE_LIMIT = 2500
+        self.grid_max_import = grid_max_import  # capacity tariff cap in watts, None = no limit
         self.self_control_available = self_control_available
         self.mode = initial_mode
         self.logger = get_logger('Controller')
+        if self.grid_max_import is not None:
+            if self.meter:
+                self.logger.info(f"Grid import limit active: charging is capped to keep grid import below {self.grid_max_import}W")
+            else:
+                self.logger.warning(f"Grid import limit set to {self.grid_max_import}W but no meter is configured. House consumption is unknown, so total charge power is capped at the limit itself.")
         self.set_battery_mode(initial_mode)
 
     def run_forever(self):
@@ -58,20 +64,19 @@ class Controller:
             power = abs(adjusted_power)
             if self.mode == BATTERY_NORMAL:
                 if mode == CHARGING:
-                    self._charge(power)
+                    self._charge(self._cap_charge_power(power, adjusted_power))
                 else:
-                    self._discharge(power)    
+                    self._discharge(power)
             elif self.mode == BATTERY_HOLD:
 
                 if mode == CHARGING:
-                    self._charge(power)
+                    self._charge(self._cap_charge_power(power, adjusted_power))
                 else:
                     self._idle_all()
             #the easiest case: Just charge all batteries
 
             elif self.mode == BATTERY_CHARGE:
-                for b in self.batteries:
-                        b.charge(self.CHARGE_LIMIT)
+                self._charge_all(adjusted_power)
             elif self.mode == BATTERY_SELFCONTROL:
                 pass # do nothing, let the batteries control themselves
             time.sleep(self.interval)
@@ -139,7 +144,52 @@ class Controller:
         return self.cached_priority_targets
 
 
+    def _charge_headroom(self, house_power: int) -> int | None:
+        """Total charge power (W) still allowed under the grid import limit.
+
+        house_power is the household consumption without the batteries
+        (positive = importing from the grid). Returns None when no limit is configured.
+        """
+        if self.grid_max_import is None:
+            return None
+        if not self.meter:
+            # Without a meter the house consumption is unknown, so the limit itself
+            # is the only cap we can apply.
+            return self.grid_max_import
+        return max(0, self.grid_max_import - house_power)
+
+    def _cap_charge_power(self, power: int, house_power: int) -> int:
+        """Reduce a requested charge power so the grid import stays under the limit."""
+        headroom = self._charge_headroom(house_power)
+        if headroom is None or power <= headroom:
+            return power
+        self.logger.info(f"Grid import limit {self.grid_max_import}W: house is using {house_power}W, capping charge from {power}W to {headroom}W")
+        return headroom
+
+    def _charge_all(self, house_power: int):
+        """Charge every battery at full power, limited by the grid headroom if configured."""
+        headroom = self._charge_headroom(house_power)
+        if headroom is None:
+            power_per_battery = self.CHARGE_LIMIT
+        else:
+            power_per_battery = min(self.CHARGE_LIMIT, headroom // len(self.batteries))
+
+        if power_per_battery <= 0:
+            self.logger.info(f"Grid import limit {self.grid_max_import}W reached: house is using {house_power}W, idling all batteries")
+            self._idle_all()
+            return
+
+        if headroom is not None and power_per_battery < self.CHARGE_LIMIT:
+            self.logger.info(f"Grid import limit {self.grid_max_import}W: house is using {house_power}W, charging {len(self.batteries)} batteries at {power_per_battery}W each")
+
+        for b in self.batteries:
+            b.charge(power_per_battery)
+
     def _charge(self,power: int):
+        if power <= 0:
+            self.logger.debug("No charge power available")
+            self._idle_all()
+            return
         # get the list of batteries to charge based on priority
         target_batteries = self._get_batteries_priority_list(CHARGING)
         #calculate how many batteries can be charged with the given power
