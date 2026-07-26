@@ -6,7 +6,7 @@
 - **Grid import limit** (`GRID_MAX_IMPORT_WATTS`, optional): caps total charge power so house consumption plus battery charging stays below the configured number of watts. Aimed at the Belgian capacity tariff. Unset means no limit, which is the previous behaviour.
 - **Evcc mode** (numeric `5`, MQTT label `"Evcc"`): follows the battery suggestions of EVCC's experimental optimizer, read from `<EVCC_HOST>/api/state`. Configured with `EVCC_HOST`, `EVCC_BATTERY_NAME` and `EVCC_POLL_SECONDS`. A `hold` suggestion still charges from solar surplus, `charge` charges at the suggested power (never below the available surplus), and `discharge` covers house consumption capped at the suggested power without exporting. Falls back to Normal whenever no usable suggestion is available. The mode is only offered when `EVCC_HOST` is set.
 
-- **EVCC MQTT entities**: a separate "MMBC EVCC Optimizer" device publishes what EVCC asks for (`evcc/action`, `evcc/charge`, `evcc/discharge`, `evcc/actionable`) plus `evcc/following`, which tells you whether MMBC is acting on it. Published in every mode whenever `EVCC_HOST` is set.
+- **EVCC MQTT entities**: what EVCC asks for is published as `evcc/action`, `evcc/charge`, `evcc/discharge` and `evcc/actionable`, plus `evcc/following` which tells you whether MMBC is acting on it. Published in every mode whenever `EVCC_HOST` is set.
 - **Resulting action entities**: `target_action` and `target_power` publish what the controller last told the batteries to do, in every mode. Comparing `target_power` with `power` shows whether the batteries follow their setpoint.
 
 ### Fixed

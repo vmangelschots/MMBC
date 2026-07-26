@@ -115,6 +115,8 @@ This section describes all MQTT topics used by MMBC for integration with Home As
 | `mmbc/virtual/evcc/actionable`          | 🔼 Publish    | Whether EVCC marked the suggestion as actionable                 | `"ON"` / `"OFF"`                         | No            |
 | `mmbc/virtual/evcc/following`           | 🔼 Publish    | Whether MMBC is currently acting on the suggestion               | `"ON"` / `"OFF"`                         | No            |
 
+All of these are entities of the single `MMBC Combined Battery` device in Home Assistant; the EVCC ones are grouped by their `EVCC ...` name prefix.
+
 The `evcc/*` topics are only published when `EVCC_HOST` is configured. They are published in **every** mode, so you can watch what the optimizer would do before switching to Evcc mode — `following` tells you whether MMBC is actually acting on it.
 
 Comparing `target_power` (what MMBC asked for) with `power` (what the batteries report) makes it easy to spot a battery that is not keeping up with its setpoint.

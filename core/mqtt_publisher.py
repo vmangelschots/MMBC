@@ -21,8 +21,6 @@ MQTT_PASSWORD = get_config_value("MQTT_PASSWORD")
 HA_DISCOVERY_PREFIX = "homeassistant"
 DEVICE_ID = "MMBC_Combined_Battery"
 DEVICE_NAME = "MMBC Combined Battery"
-EVCC_DEVICE_ID = "MMBC_EVCC"
-EVCC_DEVICE_NAME = "MMBC EVCC Optimizer"
 
 class MqttPublisher:
     def __init__(self,controller, batteries, interval=10):
@@ -207,27 +205,31 @@ class MqttPublisher:
         self.publish_evcc_discovery_config()
 
     def publish_evcc_discovery_config(self):
-        """Discovery configs for what the EVCC optimizer is asking for."""
+        """Discovery configs for what the EVCC optimizer is asking for.
+
+        These belong to the same device as the other combined metrics, they are only
+        grouped by their "EVCC" name prefix.
+        """
         if not self.controller.evcc_available:
             return
 
         device = {
-            "identifiers": [EVCC_DEVICE_ID],
-            "name": EVCC_DEVICE_NAME,
+            "identifiers": [DEVICE_ID],
+            "name": DEVICE_NAME,
             "manufacturer": "MMBC",
-            "model": "EvccOptimizer"
+            "model": "VirtualBattery"
         }
 
         sensors = [
-            {"name": "Suggested Action", "key": "action", "unit": "", "device_class": None},
-            {"name": "Suggested Charge", "key": "charge", "unit": "W", "device_class": "power"},
-            {"name": "Suggested Discharge", "key": "discharge", "unit": "W", "device_class": "power"},
+            {"name": "EVCC Suggested Action", "key": "action", "unit": "", "device_class": None},
+            {"name": "EVCC Suggested Charge", "key": "charge", "unit": "W", "device_class": "power"},
+            {"name": "EVCC Suggested Discharge", "key": "discharge", "unit": "W", "device_class": "power"},
         ]
         for sensor in sensors:
             payload = {
                 "name": sensor["name"],
                 "state_topic": f"{MQTT_TOPIC_PREFIX}/evcc/{sensor['key']}",
-                "unique_id": f"{EVCC_DEVICE_ID}_{sensor['key']}",
+                "unique_id": f"{DEVICE_ID}_evcc_{sensor['key']}",
                 "device": device
             }
             if sensor["unit"]:
@@ -237,27 +239,27 @@ class MqttPublisher:
                 payload["state_class"] = "measurement"
 
             self.client.publish(
-                f"{HA_DISCOVERY_PREFIX}/sensor/{EVCC_DEVICE_ID}_{sensor['key']}/config",
+                f"{HA_DISCOVERY_PREFIX}/sensor/{DEVICE_ID}_evcc_{sensor['key']}/config",
                 json.dumps(payload),
                 retain=True
             )
 
         binary_sensors = [
-            {"name": "Actionable", "key": "actionable", "icon": "mdi:check-decagram"},
-            {"name": "Following", "key": "following", "icon": "mdi:link-variant"},
+            {"name": "EVCC Actionable", "key": "actionable", "icon": "mdi:check-decagram"},
+            {"name": "EVCC Following", "key": "following", "icon": "mdi:link-variant"},
         ]
         for sensor in binary_sensors:
             payload = {
                 "name": sensor["name"],
                 "state_topic": f"{MQTT_TOPIC_PREFIX}/evcc/{sensor['key']}",
-                "unique_id": f"{EVCC_DEVICE_ID}_{sensor['key']}",
+                "unique_id": f"{DEVICE_ID}_evcc_{sensor['key']}",
                 "payload_on": "ON",
                 "payload_off": "OFF",
                 "icon": sensor["icon"],
                 "device": device
             }
             self.client.publish(
-                f"{HA_DISCOVERY_PREFIX}/binary_sensor/{EVCC_DEVICE_ID}_{sensor['key']}/config",
+                f"{HA_DISCOVERY_PREFIX}/binary_sensor/{DEVICE_ID}_evcc_{sensor['key']}/config",
                 json.dumps(payload),
                 retain=True
             )
